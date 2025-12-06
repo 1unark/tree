@@ -31,4 +31,4 @@ yarn-error.log*
 
 
 # Virtual environments
-myenv/
+venv/
