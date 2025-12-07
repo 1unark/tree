@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Life Timeline',
+  title: 'Timeline',
   description: 'Track your life chapters and events',
 };
 

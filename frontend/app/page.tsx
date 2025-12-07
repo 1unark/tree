@@ -1,6 +1,13 @@
-// app/page.tsx
-import TimelineContainer from '@/components/TimelineContainer';
+// components/TimelineContainer.tsx
+'use client';
 
-export default function TimelinePage() {
-  return <TimelineContainer />;
+import TimelineFlow from './components/TimelineFlow';
+import { useTimeline } from '@/hooks/useTimeline';
+
+export default function TimelineContainer() {
+  const { chapters, events, loading } = useTimeline();
+
+  if (loading) return <div>Loading...</div>;
+
+  return <TimelineFlow chapters={chapters} events={events} />;
 }

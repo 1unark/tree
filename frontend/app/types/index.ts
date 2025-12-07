@@ -1,10 +1,8 @@
-// app/types/index.ts
 export interface Chapter {
   id: number;
   title: string;
   description?: string;
-  start_date: string;
-  end_date?: string;
+  date: string;
   color: string;
   created_at: string;
   updated_at: string;
@@ -23,8 +21,7 @@ export interface Event {
 export interface ChapterFormData {
   title: string;
   description?: string;
-  start_date: string;
-  end_date?: string;
+  date: string;
   color: string;
 }
 
