@@ -1,101 +1,673 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ChevronRight, ChevronDown, GripVertical, Plus, Calendar, BookOpen, Edit3 } from 'lucide-react';
 
 const sampleData = {
   mainTimeline: [
-    { id: 'm1', date: new Date(2000, 0, 1), title: "Born", content: "Entered the world on a cold January morning." },
-    { id: 'm2', date: new Date(2005, 8, 1), title: "Started School", content: "First day of elementary school. Big milestone." },
-    { id: 'm3', date: new Date(2016, 5, 15), title: "College Graduation", content: "BS in Computer Science. Ready for the world." },
-    { id: 'm4', date: new Date(2018, 7, 20), title: "Got Married", content: "Best day of my life with Sarah." },
-    { id: 'm5', date: new Date(2022, 2, 10), title: "Became a Parent", content: "Lily was born. Everything changed." },
+    { 
+      id: 'period-childhood',
+      type: 'period',
+      title: 'Childhood',
+      dateRange: '2000 - 2005',
+      startDate: new Date(2000, 0, 1),
+      endDate: new Date(2005, 8, 1),
+      collapsed: false,
+      entries: [
+        { 
+          id: 'm1', 
+          date: new Date(2000, 0, 1), 
+          title: "Born", 
+          preview: "Entered the world on a cold January morning...",
+          content: "Entered the world on a cold January morning. Mom says I came three weeks early."
+        },
+        { 
+          id: 'm1a', 
+          date: new Date(2001, 3, 12), 
+          title: "First Steps", 
+          preview: "Took my first wobbly steps...",
+          content: "Took my first wobbly steps across the living room. Dad caught it on camera."
+        },
+        { 
+          id: 'm2', 
+          date: new Date(2002, 5, 15), 
+          title: "First Words", 
+          preview: "Started talking, said 'dada' first...",
+          content: "Started talking, said 'dada' first much to mom's dismay."
+        },
+        { 
+          id: 'm2a', 
+          date: new Date(2003, 7, 8), 
+          title: "Beach Vacation", 
+          preview: "First time seeing the ocean...",
+          content: "First time seeing the ocean. Built sandcastles all day with dad."
+        },
+        { 
+          id: 'm3', 
+          date: new Date(2004, 8, 1), 
+          title: "First Day of Preschool", 
+          preview: "Walked into Mrs. Johnson's classroom...",
+          content: "Walked into Mrs. Johnson's classroom with my Spider-Man backpack. Made my first friend - Tommy."
+        },
+        { 
+          id: 'm3a', 
+          date: new Date(2005, 2, 20), 
+          title: "Learned to Ride a Bike", 
+          preview: "Dad took the training wheels off...",
+          content: "Dad took the training wheels off. Crashed twice but then I got it!"
+        },
+      ]
+    },
+    { 
+      id: 'period-education',
+      type: 'period',
+      title: 'School Years',
+      dateRange: '2005 - 2016',
+      startDate: new Date(2005, 8, 1),
+      endDate: new Date(2016, 5, 15),
+      collapsed: false,
+      entries: [
+
+        { 
+          id: 'm4a', 
+          date: new Date(2006, 3, 15), 
+          title: "Science Fair Win", 
+          preview: "My volcano project won first place...",
+          content: "My volcano project won first place. Mom helped me build it in the garage."
+        },
+        { 
+          id: 'm4b', 
+          date: new Date(2007, 10, 8), 
+          title: "Joined Soccer Team", 
+          preview: "First organized sport...",
+          content: "First organized sport. I was terrible but had so much fun."
+        },
+
+
+        { 
+          id: 'm5b', 
+          date: new Date(2010, 5, 20), 
+          title: "Band Concert", 
+          preview: "Played trumpet in my first concert...",
+          content: "Played trumpet in my first concert. Hit most of the right notes."
+        },
+        { 
+          id: 'm6', 
+          date: new Date(2011, 8, 1), 
+          title: "High School Begins", 
+          preview: "Freshman year. Walking through those doors...",
+          content: "Freshman year. Walking through those doors was terrifying and exhilarating."
+        },
+        { 
+          id: 'm6a', 
+          date: new Date(2012, 1, 10), 
+          title: "Made Varsity Team", 
+          preview: "As a sophomore, huge accomplishment...",
+          content: "As a sophomore, huge accomplishment. Coach believed in me."
+        },
+
+      ]
+    },
+    { 
+      id: 'period-adult',
+      type: 'period',
+      title: 'Adult Life',
+      dateRange: '2016 - Present',
+      startDate: new Date(2016, 6, 1),
+      endDate: new Date(2024, 11, 31),
+      collapsed: false,
+      entries: [
+        { 
+          id: 'm8', 
+          date: new Date(2016, 6, 1), 
+          title: "First Real Job", 
+          preview: "Started as a junior developer...",
+          content: "Started as a junior developer at TechCorp. Imposter syndrome hit hard."
+        },
+        { 
+          id: 'm8a', 
+          date: new Date(2017, 0, 15), 
+          title: "First Apartment", 
+          preview: "Moved out of my parents' house...",
+          content: "Moved into my own place and spent a lot of time moving my stuff in. It was my first time living somewhere other than my childhood home and felt pretty crazy."
+        },
+        { 
+          id: 'm8b', 
+          date: new Date(2017, 8, 22), 
+          title: "Completed First Marathon", 
+          preview: "26.2 miles, finished in 4:32...",
+          content: "26.2 miles, finished in 4:32. Trained for 6 months. Legs hurt for a week."
+        },
+        { 
+          id: 'm9', 
+          date: new Date(2018, 7, 20), 
+          title: "Got Married", 
+          preview: "Best day of my life. Sarah looked stunning...",
+          content: "Best day of my life. Sarah looked stunning. Vows under the oak tree, everyone cried."
+        },
+        { 
+          id: 'm9a', 
+          date: new Date(2019, 2, 10), 
+          title: "Honeymoon in Japan", 
+          preview: "Two weeks exploring Tokyo and Kyoto...",
+          content: "Two weeks exploring Tokyo and Kyoto. Amazing food, beautiful temples."
+        },
+        { 
+          id: 'm9b', 
+          date: new Date(2019, 9, 5), 
+          title: "Bought First House", 
+          preview: "3 bed, 2 bath with a yard...",
+          content: "3 bed, 2 bath with a yard. The mortgage is scary but it's ours."
+        },
+        { 
+          id: 'm9c', 
+          date: new Date(2020, 2, 15), 
+          title: "Pandemic Lockdown", 
+          preview: "World changed overnight...",
+          content: "World changed overnight. Working from home, everything uncertain."
+        },
+        { 
+          id: 'm9d', 
+          date: new Date(2021, 5, 20), 
+          title: "Adopted Max", 
+          preview: "Got a golden retriever puppy...",
+          content: "Got a golden retriever puppy at the animal shelter. Hes so cute and loves to run outside"
+        },
+        { 
+          id: 'm10', 
+          date: new Date(2022, 2, 10), 
+          title: "Became a Parent", 
+          preview: "Lily was born at 3:47 AM...",
+          content: "Lily was born at 3:47 AM. 7 pounds, 3 ounces. My entire world shifted."
+        },
+        { 
+          id: 'm10a', 
+          date: new Date(2023, 7, 15), 
+          title: "Lily's First Birthday", 
+          preview: "Can't believe a year has passed...",
+          content: "Can't believe a year has passed. She's walking now. Time flies."
+        },
+        { 
+          id: 'm10b', 
+          date: new Date(2024, 4, 8), 
+          title: "Family Trip to Disney", 
+          preview: "Lily's first big vacation...",
+          content: "Lily's first big vacation. Her face when she saw the castle was priceless."
+        },
+      ]
+    },
   ],
   branches: [
     {
       id: 1,
-      name: "Education",
-      x: 400,
+      name: "Career",
+      x: 720,
       collapsed: false,
-      color: "#2563eb",
-      entries: [
-        { id: 1, date: new Date(2005, 8, 15), title: "First Week", content: "Learning to read and write. Made friends with Sarah." },
-        { id: 2, date: new Date(2006, 11, 10), title: "Science Fair", content: "Built a volcano. It actually worked!" },
-        { id: 3, date: new Date(2008, 8, 1), title: "Middle School", content: "Harder classes, more freedom. Joined chess club." },
-        { id: 4, date: new Date(2010, 3, 20), title: "Robotics", content: "Started building robots. Found my passion." },
-        { id: 5, date: new Date(2011, 8, 1), title: "High School", content: "AP classes and late nights studying." },
-        { id: 6, date: new Date(2013, 11, 5), title: "College Apps", content: "Submitted to 8 schools. Waiting is torture." },
-        { id: 7, date: new Date(2014, 3, 15), title: "Accepted!", content: "Got into my dream school with scholarship." },
-        { id: 8, date: new Date(2015, 5, 10), title: "Internship", content: "First real coding job. Learning so much." },
+      color: "#3b82f6",
+      periods: [
+        {
+          id: 'career-early',
+          title: 'Early Career',
+          dateRange: '2016 - 2020',
+          startDate: new Date(2016, 6, 1),
+          endDate: new Date(2020, 0, 1),
+          collapsed: false,
+          entries: [
+            { 
+              id: 18, 
+              date: new Date(2016, 6, 1), 
+              title: "First Job at TechCorp", 
+              preview: "Junior developer role...",
+              content: "Junior developer role. Terrified but excited. First PR took 6 hours."
+            },
+            { 
+              id: '18a', 
+              date: new Date(2016, 9, 10), 
+              title: "Completed Onboarding", 
+              preview: "Finally felt like part of the team...",
+              content: "Finally felt like part of the team. Got my first real project assignment."
+            },
+            { 
+              id: 19, 
+              date: new Date(2017, 2, 15), 
+              title: "First Production Deploy", 
+              preview: "Pushed code that affected real users...",
+              content: "Pushed code that affected real users. Hands shaking, watched metrics for an hour."
+            },
+            { 
+              id: '19a', 
+              date: new Date(2017, 6, 20), 
+              title: "Won Hackathon", 
+              preview: "24-hour internal competition...",
+              content: "24-hour internal competition. Our team built a cool internal tool. Got company-wide recognition."
+            },
+            { 
+              id: '19b', 
+              date: new Date(2017, 10, 5), 
+              title: "First Conference Talk", 
+              preview: "Spoke at local dev meetup...",
+              content: "Spoke at local dev meetup. Super nervous but it went well."
+            },
+            { 
+              id: 20, 
+              date: new Date(2018, 2, 1), 
+              title: "Promoted to Senior", 
+              preview: "Finally felt like I knew what I was doing...",
+              content: "Finally felt like I knew what I was doing. Leading projects, mentoring juniors."
+            },
+            { 
+              id: '20a', 
+              date: new Date(2018, 8, 12), 
+              title: "Led Major Feature Launch", 
+              preview: "First time owning an entire feature...",
+              content: "First time owning an entire feature. Shipped on time and under budget."
+            },
+            { 
+              id: '20b', 
+              date: new Date(2019, 3, 8), 
+              title: "Mentored First Junior", 
+              preview: "Started mentoring Alex...",
+              content: "Started mentoring Alex. Reminded me how much I've grown."
+            },
+            { 
+              id: '20c', 
+              date: new Date(2019, 10, 15), 
+              title: "Got Industry Certification", 
+              preview: "Passed AWS Solutions Architect exam...",
+              content: "Passed AWS Solutions Architect exam. Studied for 3 months."
+            },
+          ]
+        },
+        {
+          id: 'career-growth',
+          title: 'Growth Phase',
+          dateRange: '2020 - 2024',
+          startDate: new Date(2020, 0, 1),
+          endDate: new Date(2024, 11, 31),
+          collapsed: false,
+          entries: [
+            { 
+              id: 22, 
+              date: new Date(2020, 0, 1), 
+              title: "Joined a Startup", 
+              preview: "Left the comfort of BigCorp...",
+              content: "Left BigCorp for a 20-person startup. Risky but wanted something meaningful."
+            },
+            { 
+              id: '22a', 
+              date: new Date(2020, 5, 10), 
+              title: "Helped Raise Series A", 
+              preview: "Company secured $5M funding...",
+              content: "Company secured $5M funding. My technical demos helped close investors."
+            },
+            { 
+              id: '22b', 
+              date: new Date(2020, 9, 22), 
+              title: "Built Core Platform", 
+              preview: "Architected and built our main product...",
+              content: "Architected and built our main product. Months of work but so rewarding."
+            },
+            { 
+              id: 23, 
+              date: new Date(2021, 5, 15), 
+              title: "Became Tech Lead", 
+              preview: "Leading a team of 5 engineers...",
+              content: "Leading a team of 5 engineers. First time managing people. So different from coding."
+            },
+            { 
+              id: '23a', 
+              date: new Date(2021, 10, 8), 
+              title: "Hired First Team Member", 
+              preview: "Ran interview process, made my first hire...",
+              content: "Ran interview process, made my first hire. Big responsibility."
+            },
+            { 
+              id: '23b', 
+              date: new Date(2022, 4, 20), 
+              title: "Launched Product V2", 
+              preview: "Complete redesign and rewrite...",
+              content: "Complete redesign and rewrite. Team worked incredibly hard. Users loved it."
+            },
+            { 
+              id: '23c', 
+              date: new Date(2023, 1, 12), 
+              title: "Spoke at TechConf", 
+              preview: "Keynote at major industry conference...",
+              content: "Keynote at major industry conference. 500 people in the audience."
+            },
+            { 
+              id: '23d', 
+              date: new Date(2023, 8, 5), 
+              title: "Promoted to Engineering Manager", 
+              preview: "Now managing 12 people across 3 teams...",
+              content: "Now managing 12 people across 3 teams. Less coding, more strategy."
+            },
+            { 
+              id: '23e', 
+              date: new Date(2024, 3, 18), 
+              title: "Company Hit Profitability", 
+              preview: "First profitable quarter...",
+              content: "First profitable quarter. All the hard work paying off."
+            },
+          ]
+        },
       ]
     },
     {
       id: 2,
-      name: "Career",
-      x: 700,
+      name: "Relationships",
+      x: 1020,
       collapsed: false,
-      color: "#dc2626",
-      entries: [
-        { id: 9, date: new Date(2016, 6, 1), title: "First Job", content: "Software engineer at TechCorp. Nervous but excited." },
-        { id: 10, date: new Date(2017, 2, 15), title: "First Deploy", content: "Pushed code to production. Users using my work!" },
-        { id: 11, date: new Date(2018, 2, 1), title: "Promoted", content: "Senior engineer. Leading a small team now." },
-        { id: 12, date: new Date(2019, 10, 20), title: "Major Launch", content: "Shipped our biggest feature. Press coverage." },
-        { id: 13, date: new Date(2020, 0, 1), title: "Startup", content: "Joined a 20-person startup. Fast pace, big impact." },
-        { id: 14, date: new Date(2023, 5, 1), title: "Founded Company", content: "Started my own thing. Terrifying but right." },
+      color: "#ec4899",
+      periods: [
+        {
+          id: 'rel-dating',
+          title: 'Dating Years',
+          dateRange: '2014 - 2018',
+          startDate: new Date(2014, 0, 1),
+          endDate: new Date(2018, 7, 20),
+          collapsed: false,
+          entries: [
+            { 
+              id: 26, 
+              date: new Date(2014, 8, 5), 
+              title: "First Serious Relationship", 
+              preview: "Met Emma in college...",
+              content: "Met Emma in college. Dated for 2 years but we wanted different things."
+            },
+            { 
+              id: 27, 
+              date: new Date(2016, 10, 15), 
+              title: "Breakup and Growth", 
+              preview: "Emma and I parted ways...",
+              content: "Emma and I parted ways. Hurt but learned so much about myself."
+            },
+            { 
+              id: 28, 
+              date: new Date(2017, 4, 10), 
+              title: "Met Sarah", 
+              preview: "Coffee shop on a rainy Tuesday...",
+              content: "Coffee shop on a rainy Tuesday. She was reading my favorite book. Talked for three hours."
+            },
+            { 
+              id: '28a', 
+              date: new Date(2017, 6, 22), 
+              title: "First Road Trip Together", 
+              preview: "Weekend getaway to the mountains...",
+              content: "Weekend getaway to the mountains. Got lost but had the best time."
+            },
+            { 
+              id: '28b', 
+              date: new Date(2017, 9, 30), 
+              title: "Met Her Parents", 
+              preview: "Sunday dinner, so nervous...",
+              content: "Sunday dinner, so nervous. They were so warm and welcoming."
+            },
+
+          ]
+        },
+        {
+          id: 'rel-family',
+          title: 'Family Life',
+          dateRange: '2018 - Present',
+          startDate: new Date(2018, 7, 20),
+          endDate: new Date(2024, 11, 31),
+          collapsed: false,
+          entries: [
+            { 
+              id: 30, 
+              date: new Date(2018, 7, 20), 
+              title: "Wedding Day", 
+              preview: "Under the oak tree. 80 guests...",
+              content: "Under the oak tree. 80 guests. Perfect weather. Hands shaking during vows."
+            },
+            { 
+              id: '30a', 
+              date: new Date(2019, 7, 20), 
+              title: "First Anniversary", 
+              preview: "Weekend at a bed and breakfast...",
+              content: "Weekend at a bed and breakfast. Reflected on our first year together."
+            },
+            { 
+              id: '30b', 
+              date: new Date(2020, 11, 25), 
+              title: "Found Out We're Expecting", 
+              preview: "Two pink lines. Pure joy and terror...",
+              content: "Two pink lines. Pure joy and terror. We're going to be parents!"
+            },
+            { 
+              id: '30c', 
+              date: new Date(2021, 4, 10), 
+              title: "Nursery Setup", 
+              preview: "Spent weeks painting and decorating...",
+              content: "Spent weeks painting and decorating. Pale yellow walls with animal decals."
+            },
+            { 
+              id: '30d', 
+              date: new Date(2021, 9, 8), 
+              title: "Baby Shower", 
+              preview: "Friends and family celebrated with us...",
+              content: "Friends and family celebrated with us. So many gifts and so much love."
+            },
+            { 
+              id: 31, 
+              date: new Date(2022, 2, 10), 
+              title: "Lily is Born", 
+              preview: "3:47 AM. Everything changed...",
+              content: "3:47 AM. Everything changed. She's perfect. I'm a father now."
+            },
+            { 
+              id: '31a', 
+              date: new Date(2022, 5, 15), 
+              title: "First Night's Sleep", 
+              preview: "Lily slept through the night...",
+              content: "Lily slept through the night for the first time. We actually got rest!"
+            },
+            { 
+              id: '31b', 
+              date: new Date(2022, 8, 8), 
+              title: "Lily's First Word", 
+              preview: "She said 'dada'...",
+              content: "She said 'dada'. Sarah pretended to be annoyed but we were both thrilled."
+            },
+            { 
+              id: '31c', 
+              date: new Date(2023, 1, 20), 
+              title: "Family Photos", 
+              preview: "Professional shoot, all three of us...",
+              content: "Professional shoot, all three of us. Lily wouldn't stop moving but got some great shots."
+            },
+            { 
+              id: '31d', 
+              date: new Date(2024, 0, 1), 
+              title: "Lily's First Steps", 
+              preview: "She walked across the living room...",
+              content: "She walked across the living room to me. We both cried happy tears."
+            },
+          ]
+        },
       ]
     },
     {
       id: 3,
-      name: "Family",
-      x: 1000,
+      name: "Hobbies & Travel",
+      x: 1320,
       collapsed: false,
-      color: "#059669",
-      entries: [
-        { id: 15, date: new Date(2003, 5, 15), title: "Sister Born", content: "Emma arrived. I'm a big brother now." },
-        { id: 16, date: new Date(2010, 11, 20), title: "Big Move", content: "Family relocated. Saying goodbye was hard." },
-        { id: 17, date: new Date(2013, 6, 4), title: "Lost Grandpa", content: "He shaped who I am. Miss him every day." },
-        { id: 18, date: new Date(2017, 4, 10), title: "Met Sarah", content: "Coffee shop. Talked for hours. Something clicked." },
-        { id: 19, date: new Date(2020, 2, 15), title: "Pandemic", content: "World changed. Working from home together." },
-        { id: 20, date: new Date(2023, 0, 20), title: "First Steps", content: "Lily walked today. Growing so fast." },
+      color: "#10b981",
+      periods: [
+        {
+          id: 'hobby-early',
+          title: 'Adventures',
+          dateRange: '2015 - 2020',
+          startDate: new Date(2015, 0, 1),
+          endDate: new Date(2020, 0, 1),
+          collapsed: false,
+          entries: [
+            { 
+              id: 40, 
+              date: new Date(2015, 5, 15), 
+              title: "Backpacked Europe", 
+              preview: "Summer after junior year...",
+              content: "Summer after junior year. 6 countries, 8 weeks. Life-changing experience."
+            },
+            { 
+              id: 41, 
+              date: new Date(2016, 8, 20), 
+              title: "Started Photography", 
+              preview: "Bought my first DSLR...",
+              content: "Bought my first DSLR. Been capturing moments ever since."
+            },
+            { 
+              id: 42, 
+              date: new Date(2017, 6, 10), 
+              title: "Learned to Surf", 
+              preview: "California coast, two week trip...",
+              content: "California coast, two week trip. Fell off the board 100 times but finally stood up."
+            },
+            { 
+              id: 43, 
+              date: new Date(2018, 3, 5), 
+              title: "Climbed First Mountain", 
+              preview: "Mt. Washington in New Hampshire...",
+              content: "Mt. Washington in New Hampshire. Tough hike but incredible views."
+            },
+            { 
+              id: 44, 
+              date: new Date(2019, 1, 14), 
+              title: "Started Book Club", 
+              preview: "Monthly meetings with friends...",
+              content: "Monthly meetings with friends. Currently on our 60th book."
+            },
+          ]
+        },
+        {
+          id: 'hobby-present',
+          title: 'Current Pursuits',
+          dateRange: '2020 - Present',
+          startDate: new Date(2020, 0, 1),
+          endDate: new Date(2024, 11, 31),
+          collapsed: false,
+          entries: [
+            { 
+              id: 45, 
+              date: new Date(2020, 4, 1), 
+              title: "Started Woodworking", 
+              preview: "Built a workbench in the garage...",
+              content: "Built a workbench in the garage. New pandemic hobby. Very therapeutic."
+            },
+            { 
+              id: 46, 
+              date: new Date(2021, 7, 15), 
+              title: "Ran First Half Marathon", 
+              preview: "13.1 miles, finished strong...",
+              content: "13.1 miles, finished strong. Training for a full marathon next."
+            },
+            { 
+              id: 47, 
+              date: new Date(2022, 9, 10), 
+              title: "Learned to Cook", 
+              preview: "Taking cooking classes...",
+              content: "Taking cooking classes. Can now make a decent risotto."
+            },
+            { 
+              id: 48, 
+              date: new Date(2023, 6, 20), 
+              title: "Built Lily's Treehouse", 
+              preview: "Spent a month building in the backyard...",
+              content: "Spent a month building in the backyard. She loves her special place."
+            },
+            { 
+              id: 49, 
+              date: new Date(2024, 2, 8), 
+              title: "Started Podcasting", 
+              preview: "Tech talk show with a friend...",
+              content: "Tech talk show with a friend. 10 episodes in, small but growing audience."
+            },
+          ]
+        },
       ]
-    }
+    },
   ]
 };
 
 export default function LifeTimeline({ initialData = null }) {
   const [data, setData] = useState(initialData || sampleData);
   const [dragging, setDragging] = useState(null);
+  const [expandedEntry, setExpandedEntry] = useState(null);
+  const [stickyPeriod, setStickyPeriod] = useState(null);
   const svgRef = useRef(null);
+  const scrollContainerRef = useRef(null);
 
-  const spineX = 120;
-  const entrySpacing = 70;
-  const startY = 100;
+  const spineX = 330;
+  const entryHeight = 72;
+  const periodHeaderHeight = 45;
+  const periodGap = 48;
+  const startY = 10;
+  const branchMinSpacing = 400;
 
-  // Calculate positions
-  const allDates = [
-    ...(data.mainTimeline || []).map(e => e.date),
-    ...(data.branches || []).flatMap(b => (b.entries || []).map(e => e.date))
-  ].sort((a, b) => a.getTime() - b.getTime());
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!scrollContainerRef.current) return;
+      
+      const scrollTop = scrollContainerRef.current.scrollTop;
+      let currentPeriod = null;
+      
+      for (const period of data.mainTimeline) {
+        const periodY = positions.get(`period-${period.id}`);
+        if (periodY && scrollTop + 64 >= periodY - 20) {
+          currentPeriod = period;
+        }
+      }
+      
+      setStickyPeriod(currentPeriod);
+    };
 
-  const dateToY = new Map();
-  allDates.forEach((date, idx) => {
-    dateToY.set(date.getTime(), startY + (idx * entrySpacing));
-  });
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, [data.mainTimeline]);
 
-  const totalHeight = startY + (allDates.length * entrySpacing) + 100;
+  const toggleMainPeriod = (periodId) => {
+    setData(prev => {
+      const period = prev.mainTimeline.find(p => p.id === periodId);
+      const newCollapsed = !period.collapsed;
+      
+      return {
+        ...prev,
+        mainTimeline: prev.mainTimeline.map(p => 
+          p.id === periodId ? { ...p, collapsed: newCollapsed } : p
+        ),
+        branches: prev.branches.map(branch => ({
+          ...branch,
+          periods: branch.periods.map(branchPeriod => {
+            const periodInRange = branchPeriod.startDate >= period.startDate && 
+                                 branchPeriod.startDate <= period.endDate;
+            
+            if (periodInRange) {
+              return { ...branchPeriod, collapsed: newCollapsed };
+            }
+            return branchPeriod;
+          })
+        }))
+      };
+    });
+  };
 
-  const handleMouseMove = (e) => {
-    if (!dragging) return;
-    const svg = svgRef.current;
-    const rect = svg.getBoundingClientRect();
-    const newX = e.clientX - rect.left;
-    
+  const toggleBranchPeriod = (branchId, periodId) => {
     setData(prev => ({
       ...prev,
       branches: prev.branches.map(b => 
-        b.id === dragging ? { ...b, x: Math.max(300, Math.min(1300, newX)) } : b
+        b.id === branchId ? {
+          ...b,
+          periods: b.periods.map(p => 
+            p.id === periodId ? { ...p, collapsed: !p.collapsed } : p
+          )
+        } : b
       )
     }));
   };
 
-  const toggleCollapse = (branchId) => {
+  const toggleBranch = (branchId) => {
     setData(prev => ({
       ...prev,
       branches: prev.branches.map(b => 
@@ -104,222 +676,654 @@ export default function LifeTimeline({ initialData = null }) {
     }));
   };
 
+  const calculateLayout = () => {
+    let currentY = startY;
+    const positions = new Map();
+
+    data.mainTimeline.forEach(period => {
+      positions.set(`period-${period.id}`, currentY);
+      currentY += periodHeaderHeight;
+
+      if (!period.collapsed) {
+        period.entries.forEach(entry => {
+          positions.set(`entry-${entry.id}`, currentY);
+          currentY += entryHeight;
+        });
+      }
+
+      currentY += periodGap;
+    });
+
+    return { positions, totalHeight: currentY + 100 };
+  };
+
+  const { positions, totalHeight } = calculateLayout();
+
+  useEffect(() => {
+    // Auto-space branches on mount
+    if (data.branches.length > 0) {
+        const startX = spineX + 300;
+        setData(prev => ({
+        ...prev,
+        branches: prev.branches.map((branch, idx) => ({
+            ...branch,
+            x: startX + (idx * branchMinSpacing)
+        }))
+        }));
+    }
+  }, []); // Only run once on mount
+
+  const handleMouseMove = (e) => {
+    if (!dragging) return;
+    const svg = svgRef.current;
+    const rect = svg.getBoundingClientRect();
+    const newX = e.clientX - rect.left;
+    
+    // More permissive limits - just keep it visible on screen
+    const minX = spineX + 130;
+    const maxX = rect.width - 350;
+    
+    setData(prev => ({
+        ...prev,
+        branches: prev.branches.map(b => 
+        b.id === dragging ? { ...b, x: Math.max(minX, Math.min(maxX, newX)) } : b
+        )
+    }));
+  };
+
+  const findMainPeriodForDate = (date) => {
+    return data.mainTimeline.find(p => 
+      p.startDate <= date && p.endDate >= date
+    );
+  };
+
+  const calculateBranchY = (branch, period, entryIndex = null) => {
+    const matchingMainPeriod = findMainPeriodForDate(period.startDate);
+    if (!matchingMainPeriod) return startY;
+    
+    const mainPeriodY = positions.get(`period-${matchingMainPeriod.id}`);
+    if (!mainPeriodY) return startY;
+    
+    const periodIndex = branch.periods.findIndex(p => p.id === period.id);
+    
+    let offset = 0;
+    for (let i = 0; i < periodIndex; i++) {
+      const prevPeriod = branch.periods[i];
+      const prevMainPeriod = findMainPeriodForDate(prevPeriod.startDate);
+      
+      if (prevMainPeriod?.id === matchingMainPeriod.id && !prevPeriod.collapsed) {
+        offset += periodHeaderHeight;
+        offset += prevPeriod.entries.length * entryHeight;
+      } else if (prevMainPeriod?.id === matchingMainPeriod.id) {
+        offset += periodHeaderHeight;
+      }
+    }
+    
+    if (entryIndex !== null) {
+      return mainPeriodY + offset + periodHeaderHeight + (entryIndex * entryHeight);
+    }
+    
+    return mainPeriodY + offset;
+  };
+
+  const countTotalEntries = () => {
+    let count = 0;
+    data.mainTimeline.forEach(period => {
+      count += period.entries.length;
+    });
+    data.branches.forEach(branch => {
+      branch.periods.forEach(period => {
+        count += period.entries.length;
+      });
+    });
+    return count;
+  };
   return (
+  <>
+    <style>{`
+      body, html {
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      *::-webkit-scrollbar {
+        display: none;
+      }
+      * {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+    `}</style>
     <div style={{ 
       width: '100vw', 
       height: '100vh', 
-      background: '#fafaf9',
-      overflow: 'auto',
-      fontFamily: 'Georgia, serif'
+      background: '#ffffff',
+      backgroundImage: `radial-gradient(circle, #e5e5e5 1px, transparent 1px)`,
+      backgroundSize: '24px 24px',
+      overflow: 'hidden',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      display: 'flex',
+      flexDirection: 'column',
     }}>
       <div style={{
         height: '56px',
-        borderBottom: '1px solid #e7e5e4',
+        borderBottom: '1px solid #ddd',
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'space-between',
         padding: '0 24px',
-        background: '#ffffff',
-        position: 'sticky',
-        top: 0,
-        zIndex: 10
+        background: '#fff',
+        flexShrink: 0
       }}>
-        <h1 style={{ margin: 0, fontSize: '16px', fontWeight: '500', color: '#292524' }}>
-          Life Timeline
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <h1 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111' }}>
+            Life Timeline
+          </h1>
+          
+          <div style={{ 
+            display: 'flex', 
+            gap: '8px',
+            paddingLeft: '20px',
+            borderLeft: '1px solid #ddd'
+          }}>
+            {data.branches.map(branch => (
+              <div key={branch.id} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                background: '#f5f5f5',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#666'
+              }}>
+                <div style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: branch.color
+                }} />
+                {branch.name}
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <button style={{
+          padding: '6px 14px',
+          background: '#000',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '4px',
+          fontSize: '13px',
+          fontWeight: '500',
+          cursor: 'pointer'
+        }}
+        onMouseOver={(e) => e.currentTarget.style.opacity = '0.85'}
+        onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+        >
+          + New Entry
+        </button>
       </div>
 
-      <svg 
-        ref={svgRef}
-        width="100%" 
-        height={totalHeight}
-        onMouseMove={handleMouseMove}
-        onMouseUp={() => setDragging(null)}
-        onMouseLeave={() => setDragging(null)}
-        style={{ cursor: dragging ? 'grabbing' : 'default', background: '#fafaf9' }}
-      >
-        {/* Main spine */}
-        <line
-          x1={spineX}
-          y1={50}
-          x2={spineX}
-          y2={totalHeight - 50}
-          stroke="#78716c"
-          strokeWidth="5"
-          strokeLinecap="round"
-        />
+      {stickyPeriod && (
+        <div style={{
+          position: 'absolute',
+          top: '65px',
+          left: '0',
+          right: '0',
+          height: '62px',
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid #e5e5e5',
+          display: 'flex',
+          alignItems: 'center',
+          marginTop: "-9px",
+          padding: '0 40px 0 90px',
+          zIndex: 90,
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+        }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: '#000000',
+            marginRight: '16px'
+          }} />
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: '600', color: '#000000', letterSpacing: '-0.01em' }}>
+              {stickyPeriod.title}
+            </div>
+            <div style={{ fontSize: '11px', color: '#6b6b6b', marginTop: '2px' }}>
+              {stickyPeriod.dateRange} • {stickyPeriod.entries.length} entries
+            </div>
+          </div>
+        </div>
+      )}
 
-        {/* Main timeline entries */}
-        {(data.mainTimeline || []).map(entry => {
-          const y = dateToY.get(entry.date.getTime());
-          
-          return (
-            <g key={entry.id}>
-              <circle cx={spineX} cy={y} r="5" fill="#57534e" />
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <div 
+          ref={scrollContainerRef}
+          style={{ 
+            flex: 1, 
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            paddingTop: stickyPeriod ? '56px' : '0',
+            maxHeight: '100%'
+          }}>
+          <svg 
+            ref={svgRef}
+            width="100%" 
+            height={totalHeight}
+            onMouseMove={handleMouseMove}
+            onMouseUp={() => setDragging(null)}
+            onMouseLeave={() => setDragging(null)}
+            style={{ cursor: dragging ? 'grabbing' : 'default', display: 'block' }}
+          >
+            <line
+              x1={spineX}
+              y1={40}
+              x2={spineX}
+              y2={totalHeight - 40}
+              stroke="#e0e0e0"
+              strokeWidth="2"
+            />
+
+            {data.mainTimeline.map(period => {
+              const periodY = positions.get(`period-${period.id}`);
               
-              <foreignObject
-                x={spineX - 280}
-                y={y - 8}
-                width="250"
-                height="80"
-              >
-                <div style={{ textAlign: 'right', paddingRight: '15px' }}>
-                  <div style={{
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    color: '#292524',
-                    marginBottom: '2px',
-                    fontFamily: '-apple-system, sans-serif'
-                  }}>
-                    {entry.title}
-                  </div>
-                  <div style={{
-                    fontSize: '10px',
-                    color: '#78716c',
-                    marginBottom: '4px',
-                    fontFamily: '-apple-system, sans-serif'
-                  }}>
-                    {entry.date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                  </div>
+              return (
+                <g key={period.id}>
+                  <circle cx={spineX} cy={periodY + 8} r="6" fill="#000000" />
+                  
+                  <rect
+                    x={50}
+                    y={periodY - 10}
+                    width={280}
+                    height={62}
+                    fill="transparent"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => toggleMainPeriod(period.id)}
+                  />
+                  
+                  <g style={{ cursor: 'pointer', pointerEvents: 'none' }}>
+                    {period.collapsed ? 
+                      <ChevronRight x={60} y={periodY + 3} size={18} color="#6b6b6b" strokeWidth={2.5} /> : 
+                      <ChevronDown x={60} y={periodY + 3} size={18} color="#6b6b6b" strokeWidth={2.5} />
+                    }
+                    
+                    <text
+                      x={88}
+                      y={periodY + 9}
+                      fontSize="15"
+                      fontWeight="600"
+                      fill="#000000"
+                      letterSpacing="-0.01em"
+                    >
+                      {period.title}
+                    </text>
+                    
+                    <text
+                      x={88}
+                      y={periodY + 28}
+                      fontSize="12"
+                      fill="#6b6b6b"
+                      fontWeight="500"
+                    >
+                      {period.dateRange} • {period.entries.length} {period.entries.length === 1 ? 'entry' : 'entries'}
+                    </text>
+                  </g>
+
+                  {!period.collapsed && period.entries.map(entry => {
+                    const entryY = positions.get(`entry-${entry.id}`);
+                    const isExpanded = expandedEntry === entry.id;
+                    
+                    return (
+                      <g key={entry.id}>
+                        <circle cx={spineX} cy={entryY + 18} r="3" fill="#cccccc" />
+                        
+                        <rect
+                          x={60}
+                          y={entryY + 8}
+                          width={270}
+                          height={64}
+                          fill={isExpanded ? '#fafafa' : 'transparent'}
+                          stroke="transparent"
+                          strokeWidth="1"
+                          rx="8"
+                          style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+                          onClick={() => setExpandedEntry(isExpanded ? null : entry.id)}
+                          onMouseOver={(e) => {
+                            if (!isExpanded) e.currentTarget.setAttribute('fill', '#fafafa');
+                          }}
+                          onMouseOut={(e) => {
+                            if (!isExpanded) e.currentTarget.setAttribute('fill', 'transparent');
+                          }}
+                        />
+                        
+                        <text
+                          x={80}
+                          y={entryY + 28}
+                          fontSize="13"
+                          fontWeight="600"
+                          fill="#000000"
+                          letterSpacing="-0.01em"
+                          style={{ pointerEvents: 'none' }}
+                        >
+                          {entry.title}
+                        </text>
+                        
+                        <text
+                          x={80}
+                          y={entryY + 44}
+                          fontSize="11"
+                          fill="#6b6b6b"
+                          fontWeight="500"
+                          style={{ pointerEvents: 'none' }}
+                        >
+                          {entry.date.toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: 'numeric' 
+                          })}
+                        </text>
+                        
+                        <text
+                          x={80}
+                          y={entryY + 60}
+                          fontSize="12"
+                          fill="#8a8a8a"
+                          style={{ pointerEvents: 'none' }}
+                        >
+                          {entry.preview.substring(0, 36)}...
+                        </text>
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            })}
+
+            {data.branches.map(branch => {
+              if (!branch.periods || branch.periods.length === 0) return null;
+              
+              const firstPeriod = branch.periods[0];
+              const matchingMainPeriod = findMainPeriodForDate(firstPeriod.startDate);
+              const branchStartY = matchingMainPeriod 
+                ? positions.get(`period-${matchingMainPeriod.id}`)
+                : startY;
+
+              return (
+                <g key={branch.id}>
+                  <line
+                    x1={spineX + 20}
+                    y1={branchStartY + 8}
+                    x2={branch.x - 20}
+                    y2={branchStartY + 8}
+                    stroke={branch.color}
+                    strokeWidth="2"
+                    opacity="0.2"
+                    strokeDasharray="4 4"
+                  />
+
+                  <line
+                    x1={branch.x}
+                    y1={branchStartY}
+                    x2={branch.x}
+                    y2={totalHeight - 40}
+                    stroke={branch.color}
+                    strokeWidth="2"
+                    opacity="0.12"
+                  />
+
+                  <rect
+                    x={branch.x - 100}
+                    y={branchStartY - 53}
+                    width="200"
+                    height="36"
+                    fill="#ffffff"
+                    stroke={branch.color}
+                    strokeWidth="1.5"
+                    rx="8"
+                    style={{ cursor: 'grab' }}
+                    onMouseDown={() => setDragging(branch.id)}
+                  />
+                  
+                  <g
+                    onMouseDown={() => setDragging(branch.id)}
+                    style={{ cursor: 'grab', pointerEvents: 'none' }}
+                  >
+                    <GripVertical x={branch.x - 90} y={branchStartY - 41} size={14} color={branch.color} opacity={0.5} />
+                  </g>
+                  
+                  <rect
+                    x={branch.x - 65}
+                    y={branchStartY - 32}
+                    width={24}
+                    height={24}
+                    fill="transparent"
+                    style={{ cursor: 'pointer' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleBranch(branch.id);
+                    }}
+                  />
+                  
+                  <g style={{ pointerEvents: 'none' }}>
+                    {branch.collapsed ? 
+                      <ChevronRight x={branch.x - 61} y={branchStartY - 42} size={16} color={branch.color} strokeWidth={2.5} /> : 
+                      <ChevronDown x={branch.x - 61} y={branchStartY - 42} size={16} color={branch.color} strokeWidth={2.5} />
+                    }
+                    
+                    <text
+                      x={branch.x - 38}
+                      y={branchStartY - 30}
+                      fontSize="13"
+                      fontWeight="600"
+                      fill={branch.color}
+                      letterSpacing="-0.01em"
+                    >
+                      {branch.name}
+                    </text>
+                  </g>
+
+                  {!branch.collapsed && branch.periods.map((period, pIdx) => {
+                    const matchingMainPeriod = findMainPeriodForDate(period.startDate);
+                    const mainPeriodCollapsed = matchingMainPeriod?.collapsed || false;
+                    
+                    if (mainPeriodCollapsed) return null;
+                    
+                    const periodStartY = calculateBranchY(branch, period);
+
+                    return (
+                      <g key={period.id}>
+                        <circle cx={branch.x} cy={periodStartY + 8} r="5" fill={branch.color} />
+                        
+                        <rect
+                          x={branch.x + 20}
+                          y={periodStartY - 10}
+                          width={260}
+                          height={50}
+                          fill="transparent"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => toggleBranchPeriod(branch.id, period.id)}
+                        />
+                        
+                        <g style={{ pointerEvents: 'none' }}>
+                          {period.collapsed ? 
+                            <ChevronRight x={branch.x + 28} y={periodStartY - 2} size={16} color={branch.color} opacity={0.7} strokeWidth={2.5} /> : 
+                            <ChevronDown x={branch.x + 28} y={periodStartY - 2} size={16} color={branch.color} opacity={0.7} strokeWidth={2.5} />
+                          }
+                          
+                          <text
+                            x={branch.x + 52}
+                            y={periodStartY + 5}
+                            fontSize="13"
+                            fontWeight="600"
+                            fill="#000000"
+                            letterSpacing="-0.01em"
+                          >
+                            {period.title}
+                          </text>
+                          
+                          <text
+                            x={branch.x + 52}
+                            y={periodStartY + 22}
+                            fontSize="11"
+                            fill="#6b6b6b"
+                            fontWeight="500"
+                          >
+                            {period.dateRange}
+                          </text>
+                        </g>
+
+                        {!period.collapsed && period.entries.map((entry, eIdx) => {
+                          const entryY = calculateBranchY(branch, period, eIdx);
+                          const isExpanded = expandedEntry === entry.id;
+                          
+                          return (
+                            <g key={entry.id}>
+                              <circle cx={branch.x} cy={entryY + 18} r="2.5" fill={branch.color} opacity="0.4" />
+                              
+                              <rect
+                                x={branch.x + 24}
+                                y={entryY}
+                                width={276}
+                                height={64}
+                                fill={isExpanded ? `${branch.color}0a` : 'transparent'}
+                                stroke="transparent"
+                                strokeWidth="1"
+                                rx="8"
+                                style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+                                onClick={() => setExpandedEntry(isExpanded ? null : entry.id)}
+                                onMouseOver={(e) => {
+                                  if (!isExpanded) e.currentTarget.setAttribute('fill', `${branch.color}05`);
+                                }}
+                                onMouseOut={(e) => {
+                                  if (!isExpanded) e.currentTarget.setAttribute('fill', 'transparent');
+                                }}
+                              />
+                              
+                              <text
+                                x={branch.x + 44}
+                                y={entryY + 20}
+                                fontSize="12"
+                                fontWeight="600"
+                                fill="#000000"
+                                letterSpacing="-0.01em"
+                                style={{ pointerEvents: 'none' }}
+                              >
+                                {entry.title}
+                              </text>
+                              
+                              <text
+                                x={branch.x + 44}
+                                y={entryY + 36}
+                                fontSize="10"
+                                fill="#6b6b6b"
+                                fontWeight="500"
+                                style={{ pointerEvents: 'none' }}
+                              >
+                                {entry.date.toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric',
+                                  year: 'numeric' 
+                                })}
+                              </text>
+                              
+                              <text
+                                x={branch.x + 44}
+                                y={entryY + 52}
+                                fontSize="11"
+                                fill="#8a8a8a"
+                                style={{ pointerEvents: 'none' }}
+                              >
+                                {entry.preview.substring(0, 36)}...
+                              </text>
+                            </g>
+                          );
+                        })}
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+        
+        {expandedEntry && (
+          <div style={{
+            width: '400px',
+            background: '#ffffff',
+            borderLeft: '1px solid #e5e5e5',
+            padding: '30px',
+            paddingTop: stickyPeriod ? '90px' : '104px',
+            overflow: 'auto',
+            flexShrink: 0
+          }}>
+            {(() => {
+              let entry = null;
+              data.mainTimeline.forEach(period => {
+                const found = period.entries.find(e => e.id === expandedEntry);
+                if (found) entry = found;
+              });
+              data.branches.forEach(branch => {
+                branch.periods.forEach(period => {
+                  const found = period.entries.find(e => e.id === expandedEntry);
+                  if (found) entry = found;
+                });
+              });
+
+              if (!entry) return null;
+
+              return (
+                <>
                   <div style={{
                     fontSize: '11px',
-                    color: '#44403c',
-                    lineHeight: '1.5'
+                    color: '#6b6b6b',
+                    marginBottom: '12px',
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em'
+                  }}>
+                    {entry.date.toLocaleDateString('en-US', { 
+                      weekday: 'long',
+                      month: 'long', 
+                      day: 'numeric',
+                      year: 'numeric' 
+                    })}
+                  </div>
+                  <h2 style={{
+                    fontSize: '26px',
+                    fontWeight: '700',
+                    color: '#000000',
+                    marginBottom: '24px',
+                    letterSpacing: '-0.02em',
+                    lineHeight: '1.2'
+                  }}>
+                    {entry.title}
+                  </h2>
+                  <div style={{
+                    fontSize: '15px',
+                    color: '#1a1a1a',
+                    lineHeight: '1.7',
+                    whiteSpace: 'pre-wrap'
                   }}>
                     {entry.content}
                   </div>
-                </div>
-              </foreignObject>
-            </g>
-          );
-        })}
-
-        {/* Branches */}
-        {(data.branches || []).map(branch => {
-          if (!branch.entries || branch.entries.length === 0) return null;
-          
-          const firstEntry = branch.entries[0];
-          const lastEntry = branch.entries[branch.entries.length - 1];
-          const branchStartY = dateToY.get(firstEntry.date.getTime());
-          const branchEndY = dateToY.get(lastEntry.date.getTime());
-
-          return (
-            <g key={branch.id}>
-              {/* Diagonal connection */}
-              <line
-                x1={spineX}
-                y1={branchStartY}
-                x2={branch.x}
-                y2={branchStartY}
-                stroke={branch.color}
-                strokeWidth="3"
-                strokeLinecap="round"
-                opacity="0.6"
-              />
-
-              {/* Branch name */}
-              <g
-                onMouseDown={() => setDragging(branch.id)}
-                style={{ cursor: 'grab' }}
-              >
-                <text
-                  x={branch.x - 12}
-                  y={branchStartY - 15}
-                  fontSize="10"
-                  fill={branch.color}
-                  fontWeight="600"
-                  fontFamily="-apple-system, sans-serif"
-                  style={{ cursor: 'pointer', userSelect: 'none' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleCollapse(branch.id);
-                  }}
-                >
-                  {branch.collapsed ? '▶' : '▼'}
-                </text>
-                <text
-                  x={branch.x + 5}
-                  y={branchStartY - 15}
-                  fontSize="14"
-                  fill={branch.color}
-                  fontWeight="600"
-                  fontFamily="-apple-system, sans-serif"
-                  style={{ userSelect: 'none' }}
-                >
-                  {branch.name}
-                </text>
-              </g>
-
-              {/* Vertical branch */}
-              {!branch.collapsed && (
-                <line
-                  x1={branch.x}
-                  y1={branchStartY}
-                  x2={branch.x}
-                  y2={branchEndY}
-                  stroke={branch.color}
-                  strokeWidth="2.5"
-                  opacity="0.4"
-                  strokeLinecap="round"
-                />
-              )}
-
-              {/* Branch entries */}
-              {!branch.collapsed && branch.entries.map(entry => {
-                const entryY = dateToY.get(entry.date.getTime());
-
-                return (
-                  <g key={entry.id}>
-                    <circle cx={branch.x} cy={entryY} r="3" fill={branch.color} />
-                    <line
-                      x1={branch.x}
-                      y1={entryY}
-                      x2={branch.x + 15}
-                      y2={entryY}
-                      stroke={branch.color}
-                      strokeWidth="1.5"
-                      opacity="0.5"
-                    />
-
-                    <foreignObject
-                      x={branch.x + 20}
-                      y={entryY - 8}
-                      width="240"
-                      height="70"
-                    >
-                      <div>
-                        <div style={{
-                          fontSize: '11px',
-                          fontWeight: '600',
-                          color: '#292524',
-                          marginBottom: '1px',
-                          fontFamily: '-apple-system, sans-serif'
-                        }}>
-                          {entry.title}
-                        </div>
-                        <div style={{
-                          fontSize: '9px',
-                          color: '#78716c',
-                          marginBottom: '3px',
-                          fontFamily: '-apple-system, sans-serif'
-                        }}>
-                          {entry.date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                        </div>
-                        <div style={{
-                          fontSize: '10px',
-                          color: '#44403c',
-                          lineHeight: '1.5'
-                        }}>
-                          {entry.content}
-                        </div>
-                      </div>
-                    </foreignObject>
-                  </g>
-                );
-              })}
-            </g>
-          );
-        })}
-      </svg>
+                </>
+              );
+            })()}
+          </div>
+        )}
+      </div>
     </div>
-  );
+  </>
+);
 }
