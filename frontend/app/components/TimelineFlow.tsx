@@ -1,7 +1,41 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { ChevronRight, ChevronDown, GripVertical, Plus, Calendar, BookOpen, Edit3 } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { ChevronRight, ChevronDown, GripVertical } from 'lucide-react';
+import { Chapter, Event, EventFormData } from '@/types';
+import { transformToTimelineData } from '@/lib/timelineTransform';
+import TimelineSidebar from './TimelineSidebar';
+import { useEventActions } from '@/hooks/useEventActions';
+import { useTimeline } from '@/hooks/useTimeline';
 
-const sampleData = {
+interface TimelineEntry {
+  id: string | number;
+  date: Date;
+  title: string;
+  preview: string;
+  content: string;
+}
+
+interface TimelinePeriod {
+  id: string | number;
+  type: string;
+  title: string;
+  dateRange: string;
+  startDate: Date;
+  endDate: Date;
+  collapsed: boolean;
+  entries: TimelineEntry[];
+}
+
+interface TimelineBranch {
+  id: number;
+  name: string;
+  x: number;
+  collapsed: boolean;
+  color: string;
+  periods: TimelinePeriod[];
+}
+
+// TEST DATA - COMMENTED OUT - Now using backend API
+/* const sampleData = {
   mainTimeline: [
     { 
       id: 'period-childhood',
@@ -586,15 +620,115 @@ const sampleData = {
       ]
     },
   ]
-};
+}; */
 
-export default function LifeTimeline({ initialData = null }) {
-  const [data, setData] = useState(initialData || sampleData);
-  const [dragging, setDragging] = useState(null);
-  const [expandedEntry, setExpandedEntry] = useState(null);
-  const [stickyPeriod, setStickyPeriod] = useState(null);
-  const svgRef = useRef(null);
-  const scrollContainerRef = useRef(null);
+interface LifeTimelineProps {
+  chapters?: Chapter[];
+  events?: Event[];
+  refresh?: () => Promise<void>;
+  initialData?: any; // For backward compatibility
+}
+
+export default function LifeTimeline({ chapters: chaptersProp = [], events: eventsProp = [], refresh: refreshProp, initialData = null }: LifeTimelineProps) {
+  // Use hook if props not provided, otherwise use props
+  const timelineHook = useTimeline();
+  const chapters = chaptersProp.length > 0 ? chaptersProp : timelineHook.chapters;
+  const events = eventsProp.length > 0 ? eventsProp : timelineHook.events;
+  
+  // Use provided refresh or hook's refresh
+  const refresh = refreshProp || timelineHook.refresh;
+  
+  const { createEvent, updateEvent, deleteEvent } = useEventActions(refresh);
+  // Transform API data to timeline format
+  const transformedData = useMemo(() => {
+    if (initialData) {
+      return initialData; // Use initialData if provided (for backward compatibility)
+    }
+    if (chapters.length > 0 || events.length > 0) {
+      return transformToTimelineData(chapters, events);
+    }
+    // Fallback to empty data structure
+    return {
+      mainTimeline: [],
+      branches: [],
+    };
+  }, [chapters, events, initialData]);
+
+  const [data, setData] = useState(transformedData);
+  const [dragging, setDragging] = useState<number | null>(null);
+  const [expandedEntry, setExpandedEntry] = useState<string | number | null>(null);
+  const [stickyPeriod, setStickyPeriod] = useState<any>(null);
+  const [isCreatingEntry, setIsCreatingEntry] = useState(false);
+  const [createEntryDate, setCreateEntryDate] = useState<Date | undefined>(undefined);
+  const [createEntryChapterId, setCreateEntryChapterId] = useState<number | undefined>(undefined);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Update data when chapters/events change
+  useEffect(() => {
+    const newData = transformToTimelineData(chapters, events);
+    setData(newData);
+  }, [chapters, events]);
+
+  const handleEventSubmit = async (formData: EventFormData) => {
+    try {
+      if (isCreatingEntry) {
+        await createEvent(formData);
+        setIsCreatingEntry(false);
+        setCreateEntryDate(undefined);
+        setCreateEntryChapterId(undefined);
+        // Force refresh by calling refresh directly
+        await refresh();
+      } else if (expandedEntry) {
+      // Find the event ID from expanded entry
+      let eventId: number | null = null;
+      data.mainTimeline.forEach((period: TimelinePeriod) => {
+        const found = period.entries.find((e: TimelineEntry) => e.id === expandedEntry);
+        if (found && typeof found.id === 'number') eventId = found.id;
+      });
+      data.branches.forEach((branch: TimelineBranch) => {
+        branch.periods.forEach((period: TimelinePeriod) => {
+          const found = period.entries.find((e: TimelineEntry) => e.id === expandedEntry);
+          if (found && typeof found.id === 'number') eventId = found.id;
+        });
+      });
+      if (eventId) {
+        await updateEvent(eventId, formData);
+        await refresh();
+      }
+    }
+    } catch (error) {
+      console.error('Error submitting event:', error);
+    }
+  };
+
+  const handleDeleteEntry = async (entryId: string | number) => {
+    if (typeof entryId === 'number') {
+      await deleteEvent(entryId);
+      setExpandedEntry(null);
+    }
+  };
+
+  const handleCancelSidebar = () => {
+    if (isCreatingEntry) {
+      setIsCreatingEntry(false);
+      setCreateEntryDate(undefined);
+      setCreateEntryChapterId(undefined);
+    } else {
+      setExpandedEntry(null);
+    }
+  };
+
+  // Find chapter for an entry
+  const findEntryChapter = (entryId: string | number): number | undefined => {
+    if (typeof entryId === 'number') {
+      const event = events.find(e => e.id === entryId);
+      if (event && event.chapter) {
+        return typeof event.chapter === 'number' ? event.chapter : event.chapter;
+      }
+    }
+    return undefined;
+  };
 
   const spineX = 330;
   const entryHeight = 72;
@@ -602,6 +736,85 @@ export default function LifeTimeline({ initialData = null }) {
   const periodGap = 48;
   const startY = 10;
   const branchMinSpacing = 400;
+
+  const calculateLayout = () => {
+    let currentY = startY;
+    const positions = new Map();
+
+    data.mainTimeline.forEach(period => {
+      positions.set(`period-${period.id}`, currentY);
+      currentY += periodHeaderHeight;
+
+      if (!period.collapsed) {
+        period.entries.forEach(entry => {
+          positions.set(`entry-${entry.id}`, currentY);
+          currentY += entryHeight;
+        });
+      }
+
+      currentY += periodGap;
+    });
+
+    // Ensure minimum height for empty timeline - at least viewport height
+    const minHeight = Math.max(currentY + 100, typeof window !== 'undefined' ? window.innerHeight : 800);
+    return { positions, totalHeight: minHeight };
+  };
+
+  const { positions, totalHeight } = calculateLayout();
+
+  const handleTimelineClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (dragging) return; // Don't create entry while dragging
+    
+    const svg = svgRef.current;
+    if (!svg) return;
+    
+    const rect = svg.getBoundingClientRect();
+    const scrollTop = scrollContainerRef.current?.scrollTop || 0;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top + scrollTop;
+    
+    // Check if click is on spine (main timeline) or empty space
+    if (Math.abs(x - spineX) < 100) {
+      // Find which period this Y position corresponds to
+      let clickedDate: Date | undefined;
+      let clickedChapterId: number | undefined;
+      
+      data.mainTimeline.forEach((period: TimelinePeriod) => {
+        const periodY = positions.get(`period-${period.id}`);
+        if (periodY && y >= periodY - 20 && y <= periodY + 200) {
+          // Clicked on a period - create entry for that period
+          clickedChapterId = chapters.find(c => c.id === period.id)?.id;
+          // Estimate date based on Y position within period
+          const periodStart = period.startDate.getTime();
+          const periodEnd = period.endDate.getTime();
+          const periodDuration = periodEnd - periodStart;
+          const clickOffset = y - periodY;
+          const periodHeight = periodHeaderHeight + (period.collapsed ? 0 : period.entries.length * entryHeight) + periodGap;
+          const ratio = Math.max(0, Math.min(1, clickOffset / Math.max(periodHeight, 100)));
+          clickedDate = new Date(periodStart + ratio * periodDuration);
+        }
+      });
+      
+      if (clickedDate || clickedChapterId) {
+        setCreateEntryDate(clickedDate || new Date());
+        setCreateEntryChapterId(clickedChapterId);
+        setIsCreatingEntry(true);
+        setExpandedEntry(null);
+      } else {
+        // Clicked on empty space - create with current date
+        setCreateEntryDate(new Date());
+        setCreateEntryChapterId(undefined);
+        setIsCreatingEntry(true);
+        setExpandedEntry(null);
+      }
+    } else {
+      // Click anywhere on the timeline to create
+      setCreateEntryDate(new Date());
+      setCreateEntryChapterId(undefined);
+      setIsCreatingEntry(true);
+      setExpandedEntry(null);
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -676,29 +889,6 @@ export default function LifeTimeline({ initialData = null }) {
     }));
   };
 
-  const calculateLayout = () => {
-    let currentY = startY;
-    const positions = new Map();
-
-    data.mainTimeline.forEach(period => {
-      positions.set(`period-${period.id}`, currentY);
-      currentY += periodHeaderHeight;
-
-      if (!period.collapsed) {
-        period.entries.forEach(entry => {
-          positions.set(`entry-${entry.id}`, currentY);
-          currentY += entryHeight;
-        });
-      }
-
-      currentY += periodGap;
-    });
-
-    return { positions, totalHeight: currentY + 100 };
-  };
-
-  const { positions, totalHeight } = calculateLayout();
-
   useEffect(() => {
     // Auto-space branches on mount
     if (data.branches.length > 0) {
@@ -713,8 +903,8 @@ export default function LifeTimeline({ initialData = null }) {
     }
   }, []); // Only run once on mount
 
-  const handleMouseMove = (e) => {
-    if (!dragging) return;
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!dragging || !svgRef.current) return;
     const svg = svgRef.current;
     const rect = svg.getBoundingClientRect();
     const newX = e.clientX - rect.left;
@@ -854,21 +1044,9 @@ export default function LifeTimeline({ initialData = null }) {
           </div>
         </div>
         
-        <button style={{
-          padding: '6px 14px',
-          background: '#000',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '4px',
-          fontSize: '13px',
-          fontWeight: '500',
-          cursor: 'pointer'
-        }}
-        onMouseOver={(e) => e.currentTarget.style.opacity = '0.85'}
-        onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
-        >
-          + New Entry
-        </button>
+        <div style={{ fontSize: '12px', color: '#6b6b6b' }}>
+          Click on the timeline to create entries
+        </div>
       </div>
 
       {stickyPeriod && (
@@ -906,7 +1084,7 @@ export default function LifeTimeline({ initialData = null }) {
         </div>
       )}
 
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         <div 
           ref={scrollContainerRef}
           style={{ 
@@ -914,24 +1092,89 @@ export default function LifeTimeline({ initialData = null }) {
             overflowY: 'auto',
             overflowX: 'hidden',
             paddingTop: stickyPeriod ? '56px' : '0',
-            maxHeight: '100%'
+            height: '100%',
+            width: '100%'
           }}>
-          <svg 
-            ref={svgRef}
-            width="100%" 
-            height={totalHeight}
-            onMouseMove={handleMouseMove}
-            onMouseUp={() => setDragging(null)}
-            onMouseLeave={() => setDragging(null)}
-            style={{ cursor: dragging ? 'grabbing' : 'default', display: 'block' }}
-          >
+          {data.mainTimeline.length === 0 && data.branches.length === 0 ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              padding: '40px',
+              textAlign: 'center',
+              color: '#6b6b6b'
+            }}>
+              <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '12px', color: '#000' }}>
+                Your timeline is empty
+              </div>
+              <div style={{ fontSize: '14px', marginBottom: '24px', maxWidth: '400px' }}>
+                Click anywhere on the timeline to create your first entry, or create a chapter first to organize your timeline.
+              </div>
+              <div 
+                style={{
+                  width: '2px',
+                  height: '400px',
+                  background: '#e0e0e0',
+                  position: 'relative',
+                  margin: '0 auto',
+                  cursor: 'pointer'
+                }}
+                onClick={() => {
+                  setCreateEntryDate(new Date());
+                  setCreateEntryChapterId(undefined);
+                  setIsCreatingEntry(true);
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  background: '#37352f',
+                  cursor: 'pointer',
+                  border: '2px solid white',
+                  boxShadow: '0 0 0 2px #37352f',
+                  transition: 'transform 0.2s ease'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.2)'}
+                onMouseOut={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)'}
+                />
+              </div>
+            </div>
+          ) : (
+            <svg 
+              ref={svgRef}
+              width="100%" 
+              height={totalHeight}
+              onMouseMove={handleMouseMove}
+              onMouseUp={() => setDragging(null)}
+              onMouseLeave={() => setDragging(null)}
+              style={{ cursor: dragging ? 'grabbing' : 'default', display: 'block', minHeight: '100vh' }}
+            >
+            {/* Main timeline spine - full height */}
             <line
               x1={spineX}
-              y1={40}
+              y1={0}
               x2={spineX}
-              y2={totalHeight - 40}
+              y2={totalHeight}
               stroke="#e0e0e0"
               strokeWidth="2"
+            />
+            
+            {/* Clickable area for creating entries along the spine - wider for easier clicking */}
+            <rect
+              x={spineX - 100}
+              y={0}
+              width={200}
+              height={totalHeight}
+              fill="transparent"
+              style={{ cursor: 'pointer' }}
+              onClick={(e) => handleTimelineClick(e as any)}
             />
 
             {data.mainTimeline.map(period => {
@@ -1255,74 +1498,38 @@ export default function LifeTimeline({ initialData = null }) {
               );
             })}
           </svg>
+          )}
         </div>
         
-        {expandedEntry && (
-          <div style={{
-            width: '400px',
-            background: '#ffffff',
-            borderLeft: '1px solid #e5e5e5',
-            padding: '30px',
-            paddingTop: stickyPeriod ? '90px' : '104px',
-            overflow: 'auto',
-            flexShrink: 0
-          }}>
-            {(() => {
-              let entry = null;
-              data.mainTimeline.forEach(period => {
-                const found = period.entries.find(e => e.id === expandedEntry);
-                if (found) entry = found;
+        {(expandedEntry || isCreatingEntry) && (
+          <TimelineSidebar
+            entry={(() => {
+              if (isCreatingEntry) return null;
+              let foundEntry: TimelineEntry | null = null;
+              data.mainTimeline.forEach((period: TimelinePeriod) => {
+                const found = period.entries.find((e: TimelineEntry) => e.id === expandedEntry);
+                if (found) foundEntry = found;
               });
-              data.branches.forEach(branch => {
-                branch.periods.forEach(period => {
-                  const found = period.entries.find(e => e.id === expandedEntry);
-                  if (found) entry = found;
+              data.branches.forEach((branch: TimelineBranch) => {
+                branch.periods.forEach((period: TimelinePeriod) => {
+                  const found = period.entries.find((e: TimelineEntry) => e.id === expandedEntry);
+                  if (found) foundEntry = found;
                 });
               });
-
-              if (!entry) return null;
-
-              return (
-                <>
-                  <div style={{
-                    fontSize: '11px',
-                    color: '#6b6b6b',
-                    marginBottom: '12px',
-                    fontWeight: '600',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em'
-                  }}>
-                    {entry.date.toLocaleDateString('en-US', { 
-                      weekday: 'long',
-                      month: 'long', 
-                      day: 'numeric',
-                      year: 'numeric' 
-                    })}
-                  </div>
-                  <h2 style={{
-                    fontSize: '26px',
-                    fontWeight: '700',
-                    color: '#000000',
-                    marginBottom: '24px',
-                    letterSpacing: '-0.02em',
-                    lineHeight: '1.2'
-                  }}>
-                    {entry.title}
-                  </h2>
-                  <div style={{
-                    fontSize: '15px',
-                    color: '#1a1a1a',
-                    lineHeight: '1.7',
-                    whiteSpace: 'pre-wrap'
-                  }}>
-                    {entry.content}
-                  </div>
-                </>
-              );
+              return foundEntry;
             })()}
-          </div>
+            chapters={chapters}
+            isCreating={isCreatingEntry}
+            createDate={createEntryDate}
+            createChapterId={createEntryChapterId}
+            entryChapterId={expandedEntry ? findEntryChapter(expandedEntry) : undefined}
+            onSave={handleEventSubmit}
+            onCancel={handleCancelSidebar}
+            onDelete={handleDeleteEntry}
+          />
         )}
       </div>
+
     </div>
   </>
 );

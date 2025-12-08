@@ -13,12 +13,19 @@ export function useTimeline() {
         chaptersAPI.getAll(),
         eventsAPI.getAll(),
       ]);
-      setChapters(chaptersData.sort((a, b) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
+      
+      // Ensure we have arrays and handle paginated responses
+      const chaptersArray = Array.isArray(chaptersData) ? chaptersData : (chaptersData?.results || []);
+      const eventsArray = Array.isArray(eventsData) ? eventsData : (eventsData?.results || []);
+      
+      setChapters(chaptersArray.sort((a, b) => 
+        new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
       ));
-      setEvents(eventsData);
+      setEvents(eventsArray);
     } catch (err) {
       console.error('Failed to load data:', err);
+      setChapters([]);
+      setEvents([]);
     } finally {
       setLoading(false);
     }
