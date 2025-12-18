@@ -211,6 +211,8 @@ export default function TimelineSidebar({
                 color: '#37352f',
                 outline: 'none',
                 minHeight: '400px',
+                wordWrap: 'break-word',      // Add this
+                overflowWrap: 'break-word',  // Add this
               }}
             />
           </div>
@@ -298,6 +300,9 @@ export default function TimelineSidebar({
             color: '#37352f',
             lineHeight: '1.6',
             whiteSpace: 'pre-wrap',
+            wordWrap: 'break-word',      // Add this
+            overflowWrap: 'break-word',  // Add this
+            wordBreak: 'break-word',     // Add this for extra safety
             marginBottom: '24px',
             fontFamily: 'inherit',
           }}>

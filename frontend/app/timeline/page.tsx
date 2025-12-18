@@ -1,6 +1,6 @@
 'use client';
 
-import TimelineFlow from './components/TimelineFlow';
+import LifeTimeline from '../components/timeline/LifeTimeline';
 import { useTimeline } from '@/hooks/useTimeline';
 
 export default function TimelineContainer() {
@@ -21,5 +21,5 @@ export default function TimelineContainer() {
     );
   }
 
-  return <TimelineFlow chapters={chapters} events={events} refresh={refresh} />;
+  return <LifeTimeline chapters={chapters} events={events} refresh={refresh} />;
 }

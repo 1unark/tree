@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronRight, ChevronDown, GripVertical } from 'lucide-react';
 import { Chapter, Event, EventFormData } from '@/types';
 import { transformToTimelineData } from '@/lib/timelineTransform';
-import TimelineSidebar from './TimelineSidebar';
+import TimelineSidebar from './Sidebar';
 import { useEventActions } from '@/hooks/useEventActions';
 import { useTimeline } from '@/hooks/useTimeline';
 
@@ -755,9 +755,15 @@ export default function LifeTimeline({ chapters: chaptersProp = [], events: even
       currentY += periodGap;
     });
 
-    // Ensure minimum height for empty timeline - at least viewport height
-    const minHeight = Math.max(currentY + 100, typeof window !== 'undefined' ? window.innerHeight : 800);
-    return { positions, totalHeight: minHeight };
+    // Calculate total entries to scale infinite space
+    const totalEntries = countTotalEntries();
+    const baseHeight = currentY;
+    
+    // Add space proportional to content, with minimum of 10,000px
+    const extensionSpace = Math.max(10000, baseHeight * 2);
+    const totalHeight = baseHeight + extensionSpace;
+    
+    return { positions, totalHeight };
   };
 
   const { positions, totalHeight } = calculateLayout();
@@ -1093,7 +1099,8 @@ export default function LifeTimeline({ chapters: chaptersProp = [], events: even
             overflowX: 'hidden',
             paddingTop: stickyPeriod ? '56px' : '0',
             height: '100%',
-            width: '100%'
+            width: '100%',
+            position: 'relative'
           }}>
           {data.mainTimeline.length === 0 && data.branches.length === 0 ? (
             <div style={{
@@ -1187,7 +1194,7 @@ export default function LifeTimeline({ chapters: chaptersProp = [], events: even
                   <rect
                     x={50}
                     y={periodY - 10}
-                    width={280}
+                    width={260}
                     height={62}
                     fill="transparent"
                     style={{ cursor: 'pointer' }}
