@@ -1,5 +1,6 @@
+// components/branch/Entry.tsx
 import React from 'react';
-import { TimelineEntry } from '../../types/timeline.types';
+import { TimelineEntry, DragState } from '../../types/timeline.types';
 
 interface BranchEntryProps {
   entry: TimelineEntry;
@@ -7,7 +8,9 @@ interface BranchEntryProps {
   branchX: number;
   branchColor: string;
   isExpanded: boolean;
+  dragState: DragState;
   onToggleExpand: () => void;
+  onStartBranchDrag: (entryId: string | number, x: number, y: number) => void;
 }
 
 export default function BranchEntry({
@@ -16,12 +19,65 @@ export default function BranchEntry({
   branchX,
   branchColor,
   isExpanded,
-  onToggleExpand
+  dragState,
+  onToggleExpand,
+  onStartBranchDrag
 }: BranchEntryProps) {
+  const dotY = entryY + 18;
+  const isDragging = dragState?.type === 'creating-branch';
+
+  const handleDotMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onStartBranchDrag(entry.id, branchX, dotY);
+  };
+
   return (
     <g>
-      <circle cx={branchX} cy={entryY + 18} r="2.5" fill={branchColor} opacity="0.4" />
-      
+      {!isDragging && (
+        <circle 
+          cx={branchX}
+          cy={dotY}
+          r="2.5"
+          fill={branchColor}
+          opacity="0.4"
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
+
+      <circle
+        cx={branchX}
+        cy={dotY}
+        r="10"
+        fill="transparent"
+        style={{
+          cursor: 'grab',
+          pointerEvents: 'all'
+        }}
+        onMouseDown={handleDotMouseDown}
+        onMouseEnter={(e) => {
+          if (!isDragging) {
+            const nextSibling = e.currentTarget.nextElementSibling as SVGCircleElement | null;
+            nextSibling?.setAttribute('opacity', '1');
+          }
+        }}
+        onMouseLeave={(e) => {
+          const nextSibling = e.currentTarget.nextElementSibling as SVGCircleElement | null;
+          nextSibling?.setAttribute('opacity', '0');
+        }}
+      />
+
+      <circle
+        cx={branchX}
+        cy={dotY}
+        r="7"
+        fill="none"
+        stroke="#3b82f6"
+        strokeWidth="1.5"
+        opacity="0"
+        style={{ pointerEvents: 'none', transition: 'opacity 0.2s' }}
+      />
+
       <rect
         x={branchX + 24}
         y={entryY}
@@ -40,7 +96,7 @@ export default function BranchEntry({
           if (!isExpanded) e.currentTarget.setAttribute('fill', 'transparent');
         }}
       />
-      
+
       <text
         x={branchX + 44}
         y={entryY + 20}
@@ -52,7 +108,7 @@ export default function BranchEntry({
       >
         {entry.title}
       </text>
-      
+
       <text
         x={branchX + 44}
         y={entryY + 36}
@@ -61,13 +117,13 @@ export default function BranchEntry({
         fontWeight="500"
         style={{ pointerEvents: 'none' }}
       >
-        {entry.date.toLocaleDateString('en-US', { 
-          month: 'short', 
+        {entry.date.toLocaleDateString('en-US', {
+          month: 'short',
           day: 'numeric',
-          year: 'numeric' 
+          year: 'numeric'
         })}
       </text>
-      
+
       <text
         x={branchX + 44}
         y={entryY + 52}

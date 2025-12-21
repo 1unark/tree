@@ -1,25 +1,33 @@
+// components/Canvas.tsx
 import React from 'react';
 import { Plus } from 'lucide-react';
-import { TimelineData } from '../types/timeline.types';
+import { TimelineData, DragState } from '../types/timeline.types';
 import { LAYOUT_CONSTANTS } from '../utils/layoutCalculations';
 import MainTimelinePeriod from './main/Period';
-import BranchTimeline from './branch/Entry';
+import BranchTimeline from './branch/BranchTimeline';
+import InlineChapterCreator from './ChapterCreator';
 
 interface TimelineCanvasProps {
   data: TimelineData;
   positions: Map<string, number>;
   totalHeight: number;
   expandedEntry: string | number | null;
-  dragging: number | null;
+  dragState: DragState;
   svgRef: React.RefObject<SVGSVGElement>;
   onMouseMove: (e: React.MouseEvent) => void;
   onMouseUp: () => void;
-  onTimelineClick: (e: React.MouseEvent<SVGSVGElement>) => void; // Keep original prop
+  onTimelineClick: (e: React.MouseEvent<SVGSVGElement>) => void;
   onToggleMainPeriod: (periodId: string | number) => void;
   onToggleBranchPeriod: (branchId: string | number, periodId: string | number) => void;
   onToggleBranch: (branchId: string | number) => void;
   onToggleEntry: (entryId: string | number) => void;
-  onStartDragBranch: (branchId: number) => void;
+  onStartDragBranch: (branchId: number, offsetX: number) => void;
+  onStartBranchCreation: (entryId: string | number, x: number, y: number) => void;
+  onUpdateBranchName?: (branchId: number, newName: string) => void;
+  onUpdatePeriodTitle?: (periodId: number, newTitle: string) => void;
+  onCreateChapter?: (title: string, startDate: Date) => Promise<void>;
+  onCreateBranchPeriod?: (branchId: number, title: string, startDate: Date) => Promise<void>;
+  onAddBranchEntry?: (branchId: number, y: number) => void;
 }
 
 export default function TimelineCanvas({
@@ -27,7 +35,7 @@ export default function TimelineCanvas({
   positions,
   totalHeight,
   expandedEntry,
-  dragging,
+  dragState,
   svgRef,
   onMouseMove,
   onMouseUp,
@@ -36,18 +44,45 @@ export default function TimelineCanvas({
   onToggleBranchPeriod,
   onToggleBranch,
   onToggleEntry,
-  onStartDragBranch
+  onStartDragBranch,
+  onStartBranchCreation,
+  onUpdateBranchName,
+  onUpdatePeriodTitle,
+  onCreateChapter,
+  onCreateBranchPeriod,
+  onAddBranchEntry
 }: TimelineCanvasProps) {
   const { spineX } = LAYOUT_CONSTANTS;
   const infiniteHeight = 999999;
   const paddingOffset = 506;
   
-  // Get the last position from the positions map to find where content ends
   const allPositions = Array.from(positions.values());
   const lastContentY = allPositions.length > 0 ? Math.max(...allPositions) : 0;
-  
-  // Add standard entry spacing (from Entry component, entries are 72px tall)
-  const plusButtonY = lastContentY + 72 + 18; // +18 to align with dot position in entries
+  const plusButtonY = lastContentY + 72 + 18;
+
+  const [showMenu, setShowMenu] = React.useState(false);
+  const [showChapterCreator, setShowChapterCreator] = React.useState(false);
+
+  const handlePlusClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(!showMenu);
+  };
+
+  const handleMenuSelect = (type: 'entry' | 'chapter') => {
+    setShowMenu(false);
+    if (type === 'entry') {
+      onTimelineClick({ clientX: spineX, clientY: plusButtonY } as any);
+    } else {
+      setShowChapterCreator(true);
+    }
+  };
+
+  const handleChapterCreate = async (title: string) => {
+    if (onCreateChapter) {
+      await onCreateChapter(title, new Date());
+    }
+    setShowChapterCreator(false);
+  };
 
   return (
     <svg 
@@ -57,14 +92,17 @@ export default function TimelineCanvas({
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
+      onClick={() => {
+        setShowMenu(false);
+        setShowChapterCreator(false);
+      }}
       style={{ 
-        cursor: dragging ? 'grabbing' : 'default', 
+        cursor: dragState.type === 'branch' ? 'grabbing' : dragState.type === 'creating-branch' ? 'crosshair' : 'default',
         display: 'block', 
         minHeight: '100vh',
         marginTop: `-${paddingOffset}px`
       }}
     >
-      {/* Main timeline spine */}
       <line
         x1={spineX}
         y1={0}
@@ -74,9 +112,31 @@ export default function TimelineCanvas({
         strokeWidth="2"
       />
 
-      {/* Shift all content down by padding amount */}
       <g transform={`translate(0, ${paddingOffset})`}>
-        {/* Main timeline periods */}
+        {dragState.type === 'creating-branch' && dragState.startX && dragState.startY && dragState.currentX && dragState.currentY && (
+          <g>
+            <line
+              x1={dragState.startX}
+              y1={dragState.startY}
+              x2={dragState.currentX}
+              y2={dragState.startY}
+              stroke="#3b82f6"
+              strokeWidth="2"
+              opacity="0.4"
+              strokeDasharray="4 4"
+              style={{ pointerEvents: 'none' }}
+            />
+            <circle
+              cx={dragState.currentX}
+              cy={dragState.startY}
+              r="4"
+              fill="#3b82f6"
+              opacity="0.6"
+              style={{ pointerEvents: 'none' }}
+            />
+          </g>
+        )}
+
         {data.mainTimeline.map(period => {
           const periodY = positions.get(`period-${period.id}`);
           if (!periodY) return null;
@@ -89,13 +149,15 @@ export default function TimelineCanvas({
               spineX={spineX}
               positions={positions}
               expandedEntry={expandedEntry}
+              dragState={dragState}
               onTogglePeriod={() => onToggleMainPeriod(period.id)}
               onToggleEntry={onToggleEntry}
+              onStartBranchDrag={onStartBranchCreation}
+              onUpdatePeriodTitle={onUpdatePeriodTitle}
             />
           );
         })}
 
-        {/* Branch timelines */}
         {data.branches.map(branch => (
           <BranchTimeline
             key={branch.id}
@@ -104,22 +166,22 @@ export default function TimelineCanvas({
             positions={positions}
             totalHeight={totalHeight}
             expandedEntry={expandedEntry}
-            onStartDrag={() => onStartDragBranch(branch.id as number)}
+            dragState={dragState}
+            onStartDrag={onStartDragBranch}
             onToggleBranch={() => onToggleBranch(branch.id)}
             onTogglePeriod={(periodId) => onToggleBranchPeriod(branch.id, periodId)}
             onToggleEntry={onToggleEntry}
+            onStartBranchDrag={onStartBranchCreation}
+            onUpdateBranchName={onUpdateBranchName}
+            onCreateBranchPeriod={onCreateBranchPeriod}
+            onAddBranchEntry={onAddBranchEntry}
           />
         ))}
 
-        {/* Plus button - positioned right after last entry */}
         <g 
           style={{ cursor: 'pointer' }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onTimelineClick(e as any); // Use existing handler
-          }}
+          onClick={handlePlusClick}
         >
-          {/* Larger clickable area */}
           <circle
             cx={spineX}
             cy={plusButtonY}
@@ -127,22 +189,107 @@ export default function TimelineCanvas({
             fill="transparent"
           />
           
-          {/* Grey circle background */}
           <circle
             cx={spineX}
             cy={plusButtonY}
-            r="8"
-            fill="#d0d0d0"
+            r="10"
+            fill="#f0f0f0"
+            stroke="#d0d0d0"
+            strokeWidth="1"
             className="plus-button"
-            style={{ pointerEvents: 'none' }}
           />
           
-          {/* Plus icon */}
           <g transform={`translate(${spineX - 5}, ${plusButtonY - 5})`} style={{ pointerEvents: 'none' }}>
-            <Plus size={10} color="#666666" strokeWidth={2.5} />
+            <Plus size={10} color="#666666" strokeWidth={3} />
           </g>
         </g>
+
+        {showMenu && (
+          <g transform={`translate(${spineX + 20}, ${plusButtonY - 30})`}>
+            <rect
+              width="100"
+              height="60"
+              fill="white"
+              stroke="#d0d0d0"
+              strokeWidth="1"
+              rx="6"
+              filter="drop-shadow(0 2px 8px rgba(0,0,0,0.1))"
+            />
+            <rect
+              y="0"
+              width="100"
+              height="30"
+              fill="transparent"
+              style={{ cursor: 'pointer' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMenuSelect('entry');
+              }}
+              onMouseEnter={(e) => e.currentTarget.setAttribute('fill', '#f5f5f5')}
+              onMouseLeave={(e) => e.currentTarget.setAttribute('fill', 'transparent')}
+            />
+            <text
+              x="10"
+              y="18"
+              fontSize="11"
+              fontWeight="500"
+              fill="#333"
+              style={{ pointerEvents: 'none' }}
+            >
+              + Entry
+            </text>
+            <line
+              x1="10"
+              y1="30"
+              x2="90"
+              y2="30"
+              stroke="#e5e5e5"
+              strokeWidth="1"
+            />
+            <rect
+              y="30"
+              width="100"
+              height="30"
+              fill="transparent"
+              style={{ cursor: 'pointer' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMenuSelect('chapter');
+              }}
+              onMouseEnter={(e) => e.currentTarget.setAttribute('fill', '#f5f5f5')}
+              onMouseLeave={(e) => e.currentTarget.setAttribute('fill', 'transparent')}
+            />
+            <text
+              x="10"
+              y="48"
+              fontSize="11"
+              fontWeight="500"
+              fill="#333"
+              style={{ pointerEvents: 'none' }}
+            >
+              + Chapter
+            </text>
+          </g>
+        )}
+
+        {showChapterCreator && (
+          <InlineChapterCreator
+            x={spineX}
+            y={plusButtonY + 30}
+            onSave={handleChapterCreate}
+            onCancel={() => setShowChapterCreator(false)}
+          />
+        )}
       </g>
+
+      <style>
+        {`
+          .plus-button:hover {
+            fill: #e0e0e0 !important;
+            stroke: #b0b0b0 !important;
+          }
+        `}
+      </style>
     </svg>
   );
 }

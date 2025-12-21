@@ -1,4 +1,5 @@
 import { TimelinePeriod, TimelineData } from '../types/timeline.types';
+import { LAYOUT_CONSTANTS } from '../utils/layoutCalculations';
 
 export function findMainPeriodForDate(
   mainTimeline: TimelinePeriod[],

@@ -26,6 +26,7 @@ interface TimelineBranch {
   collapsed: boolean;
   color: string;
   periods: TimelinePeriod[];
+  sourceEntryId?: string | number;
 }
 
 interface TimelineData {
@@ -34,16 +35,13 @@ interface TimelineData {
 }
 
 export function transformToTimelineData(chapters: Chapter[], events: Event[]): TimelineData {
-  // Separate chapters by type
   const mainPeriods = chapters.filter(c => c.type === 'main_period');
   const branches = chapters.filter(c => c.type === 'branch');
   const branchPeriods = chapters.filter(c => c.type === 'branch_period');
 
-  // Get events with chapters
   const eventsWithChapters = events.filter(e => e.chapter !== null && e.chapter !== undefined);
   const eventsWithoutChapters = events.filter(e => !e.chapter || e.chapter === null || e.chapter === undefined);
 
-  // Transform main timeline periods
   const mainTimeline: TimelinePeriod[] = mainPeriods.map(chapter => {
     const chapterEvents = eventsWithChapters.filter(e => e.chapter === chapter.id || (typeof e.chapter === 'object' && e.chapter?.id === chapter.id));
     const entries: TimelineEntry[] = chapterEvents.map(event => ({
@@ -70,7 +68,6 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
     };
   });
 
-  // Add uncategorized events as a period if there are any
   if (eventsWithoutChapters.length > 0) {
     const uncategorizedEntries: TimelineEntry[] = eventsWithoutChapters.map(event => ({
       id: event.id,
@@ -96,7 +93,6 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
     });
   }
 
-  // Transform branches
   const transformedBranches: TimelineBranch[] = branches.map((branch, idx) => {
     const periodsForBranch = branchPeriods.filter(p => p.parent_branch === branch.id);
     const periods: TimelinePeriod[] = periodsForBranch.map(periodChapter => {
@@ -128,14 +124,13 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
     return {
       id: branch.id,
       name: branch.title,
-      x: branch.x_position || (630 + idx * 400), // Default spacing
+      x: branch.x_position || (630 + idx * 400),
       collapsed: branch.collapsed || false,
       color: branch.color || '#3b82f6',
       periods: periods.sort((a, b) => a.startDate.getTime() - b.startDate.getTime()),
     };
   });
 
-  // Sort main timeline by start date
   mainTimeline.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
   return {
@@ -143,4 +138,3 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
     branches: transformedBranches,
   };
 }
-

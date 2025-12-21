@@ -44,6 +44,22 @@ export default function TimelineSidebar({
   });
   const [isSaving, setIsSaving] = useState(false);
 
+  // Helper to get chapter display name
+  const getChapterDisplayName = (chapter: Chapter) => {
+    if (chapter.type === 'branch_period') {
+      const parentBranch = chapters.find(c => c.id === chapter.parent_branch && c.type === 'branch');
+      if (parentBranch) {
+        return `${parentBranch.title} - ${chapter.title}`;
+      }
+    }
+    return chapter.title;
+  };
+
+  // Helper to determine if a chapter is selectable (only periods, not branches)
+  const getSelectableChapters = () => {
+    return chapters.filter(c => c.type === 'main_period' || c.type === 'branch_period');
+  };
+
   useEffect(() => {
     if (entry && !isCreating) {
       setFormData({
@@ -67,9 +83,8 @@ export default function TimelineSidebar({
   }, [entry, isCreating, createDate, createChapterId, entryChapterId]);
 
   const handleSave = async () => {
-    if (!formData.title.trim()) return;
+    if (!formData.title || !formData.title.trim()) return;
     
-    // Auto-generate preview from content (first 100 chars)
     const preview = formData.content 
       ? formData.content.substring(0, 100).trim() + (formData.content.length > 100 ? '...' : '')
       : '';
@@ -78,7 +93,7 @@ export default function TimelineSidebar({
     try {
       await onSave({
         ...formData,
-        preview, // Auto-generated from content
+        preview,
       });
       if (!isCreating) {
         setIsEditing(false);
@@ -101,6 +116,9 @@ export default function TimelineSidebar({
   if (!entry && !isCreating) {
     return null;
   }
+
+  const selectableChapters = getSelectableChapters();
+  const selectedChapter = formData.chapter ? chapters.find(c => c.id === formData.chapter) : null;
 
   return (
     <div style={{
@@ -156,7 +174,7 @@ export default function TimelineSidebar({
             />
           </div>
 
-          {chapters.length > 0 && (
+          {selectableChapters.length > 0 && (
             <div>
               <label style={{ 
                 display: 'block', 
@@ -167,7 +185,7 @@ export default function TimelineSidebar({
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px'
               }}>
-                Chapter
+                Chapter (optional)
               </label>
               <select
                 value={formData.chapter || ''}
@@ -175,8 +193,9 @@ export default function TimelineSidebar({
                 style={{
                   width: '100%',
                   padding: '6px 8px',
-                  border: 'none',
-                  background: 'transparent',
+                  border: '1px solid #e9e9e7',
+                  borderRadius: '4px',
+                  background: 'white',
                   fontSize: '14px',
                   color: '#37352f',
                   cursor: 'pointer',
@@ -184,11 +203,20 @@ export default function TimelineSidebar({
                 }}
               >
                 <option value="">No chapter</option>
-                {chapters.map((chapter) => (
-                  <option key={chapter.id} value={chapter.id}>
-                    {chapter.title}
-                  </option>
-                ))}
+                {selectableChapters
+                  .filter(c => c.type === 'main_period')
+                  .map((chapter) => (
+                    <option key={chapter.id} value={chapter.id}>
+                      {chapter.title}
+                    </option>
+                  ))}
+                {selectableChapters
+                  .filter(c => c.type === 'branch_period')
+                  .map((chapter) => (
+                    <option key={chapter.id} value={chapter.id}>
+                      {getChapterDisplayName(chapter)}
+                    </option>
+                  ))}
               </select>
             </div>
           )}
@@ -211,8 +239,8 @@ export default function TimelineSidebar({
                 color: '#37352f',
                 outline: 'none',
                 minHeight: '400px',
-                wordWrap: 'break-word',      // Add this
-                overflowWrap: 'break-word',  // Add this
+                wordWrap: 'break-word',
+                overflowWrap: 'break-word',
               }}
             />
           </div>
@@ -236,7 +264,7 @@ export default function TimelineSidebar({
             </button>
             <button
               onClick={handleSave}
-              disabled={isSaving || !formData.title.trim()}
+              disabled={isSaving || !formData.title || !formData.title.trim()}
               style={{
                 padding: '6px 12px',
                 border: 'none',
@@ -256,14 +284,14 @@ export default function TimelineSidebar({
               <button
                 onClick={handleDelete}
                 style={{
-                  padding: '10px 20px',
+                  padding: '6px 12px',
                   border: '1px solid #ef4444',
-                  borderRadius: '6px',
+                  borderRadius: '3px',
                   background: 'white',
                   color: '#ef4444',
                   cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: '500',
+                  fontSize: '14px',
+                  fontWeight: '400',
                 }}
               >
                 Delete
@@ -300,9 +328,9 @@ export default function TimelineSidebar({
             color: '#37352f',
             lineHeight: '1.6',
             whiteSpace: 'pre-wrap',
-            wordWrap: 'break-word',      // Add this
-            overflowWrap: 'break-word',  // Add this
-            wordBreak: 'break-word',     // Add this for extra safety
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word',
+            wordBreak: 'break-word',
             marginBottom: '24px',
             fontFamily: 'inherit',
           }}>
@@ -331,4 +359,3 @@ export default function TimelineSidebar({
     </div>
   );
 }
-
