@@ -1,4 +1,4 @@
-// components/LifeTimeline.tsx
+// components/LifeTimeline.tsx - UPDATED VERSION
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTimeline } from '../../hooks/useTimeline';
 import { useEventActions } from '../../hooks/useEventActions';
@@ -39,6 +39,7 @@ export default function LifeTimeline({
   const [isCreatingEntry, setIsCreatingEntry] = useState(false);
   const [createEntryDate, setCreateEntryDate] = useState<Date | undefined>(undefined);
   const [createEntryChapterId, setCreateEntryChapterId] = useState<number | undefined>(undefined);
+  const [createEntryBranchId, setCreateEntryBranchId] = useState<number | undefined>(undefined);
   const svgRef = useRef<SVGSVGElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -114,17 +115,35 @@ export default function LifeTimeline({
     }
   };
 
-  const saveBranch = async (branch: TimelineBranch) => {
+
+  const saveBranch = async (branch: TimelineBranch, sourceEntryId?: string | number, sourceChapterId?: number) => {
     try {
-      const branchChapter = await chaptersAPI.create({
+      const { entry, period } = findEntryOrPeriodById(sourceEntryId || '');
+      
+      const branchData: any = {
         title: branch.name,
         type: 'branch',
         start_date: new Date().toISOString().split('T')[0],
         color: branch.color,
         x_position: branch.x,
         collapsed: branch.collapsed
-      });
+      };
 
+      // Set source based on what we're branching from
+      if (entry && typeof entry.id === 'number') {
+        branchData.source_entry = entry.id;
+      } else if (period && typeof period.id === 'number') {
+        branchData.source_chapter = period.id;
+      } else if (typeof sourceEntryId === 'string' && sourceEntryId.startsWith('period-')) {
+        const periodId = parseInt(sourceEntryId.replace('period-', ''));
+        if (!isNaN(periodId)) {
+          branchData.source_chapter = periodId;
+        }
+      }
+
+      const branchChapter = await chaptersAPI.create(branchData);
+
+      // Create branch period if there are periods
       if (branch.periods.length > 0) {
         const period = branch.periods[0];
         await chaptersAPI.create({
@@ -160,6 +179,19 @@ export default function LifeTimeline({
     }
   };
 
+  const handleDeleteBranch = async (branchId: number) => {
+    try {
+      await chaptersAPI.delete(branchId);
+      setData(prev => ({
+        ...prev,
+        branches: prev.branches.filter(b => b.id !== branchId)
+      }));
+      await refresh();
+    } catch (error) {
+      console.error('Error deleting branch:', error);
+    }
+  };
+
   const handleUpdateChapterName = async (chapterId: number, newName: string) => {
     try {
       await chaptersAPI.update(chapterId, { title: newName });
@@ -183,15 +215,50 @@ export default function LifeTimeline({
     }
   };
 
+  const handleDeleteChapter = async (chapterId: number) => {
+    try {
+      await chaptersAPI.delete(chapterId);
+      setData(prev => ({
+        ...prev,
+        mainTimeline: prev.mainTimeline.filter(p => p.id !== chapterId),
+        branches: prev.branches.map(branch => ({
+          ...branch,
+          periods: branch.periods.filter(p => p.id !== chapterId)
+        }))
+      }));
+      await refresh();
+    } catch (error) {
+      console.error('Error deleting chapter:', error);
+    }
+  };
+
   const handleAddBranchEntry = (branchId: number, y: number) => {
     const branch = data.branches.find(b => b.id === branchId);
-    if (!branch || !branch.periods || branch.periods.length === 0) return;
+    if (!branch) return;
     
-    const firstPeriod = branch.periods[0];
-    const periodChapterId = typeof firstPeriod.id === 'number' ? firstPeriod.id : undefined;
+    // Check if branch has periods
+    if (branch.periods && branch.periods.length > 0) {
+      // Find the most recent period (last one in the array)
+      const mostRecentPeriod = branch.periods[branch.periods.length - 1];
+      
+      // If period has a real ID, use it as chapter
+      if (typeof mostRecentPeriod.id === 'number') {
+        setCreateEntryDate(mostRecentPeriod.startDate);
+        setCreateEntryChapterId(mostRecentPeriod.id);
+        setCreateEntryBranchId(undefined);
+      } else {
+        // Period is virtual, assign directly to branch
+        setCreateEntryDate(mostRecentPeriod.startDate);
+        setCreateEntryChapterId(undefined);
+        setCreateEntryBranchId(typeof branch.id === 'number' ? branch.id : undefined);
+      }
+    } else {
+      // No periods, entry goes directly in branch
+      setCreateEntryDate(new Date());
+      setCreateEntryChapterId(undefined);
+      setCreateEntryBranchId(typeof branch.id === 'number' ? branch.id : undefined);
+    }
     
-    setCreateEntryDate(firstPeriod.startDate);
-    setCreateEntryChapterId(periodChapterId);
     setIsCreatingEntry(true);
     setExpandedEntry(null);
   };
@@ -233,7 +300,7 @@ export default function LifeTimeline({
             branches: [...prev.branches, newBranch]
           }));
           
-          await saveBranch(newBranch);
+          await saveBranch(newBranch, dragState.sourceEntryId);
         }
       }
     } else if (dragState.type === 'branch' && dragState.id) {
@@ -253,23 +320,43 @@ export default function LifeTimeline({
   const handleEventSubmit = async (formData: any) => {
     try {
       if (isCreatingEntry) {
-        await createEvent(formData);
+        const eventData: any = {
+          title: formData.title,
+          date: formData.date,
+          content: formData.content || ''
+        };
+        
+        // If we have a chapter ID, use it
+        if (createEntryChapterId) {
+          eventData.chapter = createEntryChapterId;
+        }
+        // If we have a branch ID (entry in branch without chapter), use it
+        else if (createEntryBranchId) {
+          eventData.branch = createEntryBranchId;
+        }
+        
+        await createEvent(eventData);
         setIsCreatingEntry(false);
         setCreateEntryDate(undefined);
         setCreateEntryChapterId(undefined);
+        setCreateEntryBranchId(undefined);
         await refresh();
       } else if (expandedEntry) {
         let eventId: number | null = null;
+        
+        // Find the event ID
         data.mainTimeline.forEach((period: TimelinePeriod) => {
           const found = period.entries.find((e: TimelineEntry) => e.id === expandedEntry);
           if (found && typeof found.id === 'number') eventId = found.id;
         });
+        
         data.branches.forEach((branch: TimelineBranch) => {
           branch.periods.forEach((period: TimelinePeriod) => {
             const found = period.entries.find((e: TimelineEntry) => e.id === expandedEntry);
             if (found && typeof found.id === 'number') eventId = found.id;
           });
         });
+        
         if (eventId) {
           await updateEvent(eventId, formData);
           await refresh();
@@ -292,6 +379,7 @@ export default function LifeTimeline({
       setIsCreatingEntry(false);
       setCreateEntryDate(undefined);
       setCreateEntryChapterId(undefined);
+      setCreateEntryBranchId(undefined);
     } else {
       setExpandedEntry(null);
     }
@@ -306,7 +394,6 @@ export default function LifeTimeline({
     }
     return undefined;
   };
-
   const handleTimelineClick = (e: React.MouseEvent<SVGSVGElement>) => {
     if (dragState.type) return;
     
@@ -315,45 +402,78 @@ export default function LifeTimeline({
     
     const rect = svg.getBoundingClientRect();
     const scrollTop = scrollContainerRef.current?.scrollTop || 0;
+    const paddingOffset = 506;
     const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top + scrollTop;
+    const y = e.clientY - rect.top + scrollTop - paddingOffset;
     
+    console.log('[handleTimelineClick] Click position:', { x, y, spineX: LAYOUT_CONSTANTS.spineX });
+    
+    // Only create entry if clicking near the spine
     if (Math.abs(x - LAYOUT_CONSTANTS.spineX) < 100) {
       let clickedDate: Date | undefined;
       let clickedChapterId: number | undefined;
       
-      data.mainTimeline.forEach((period: TimelinePeriod) => {
+      console.log('[handleTimelineClick] Near spine, checking periods...');
+      
+      // Find which period was clicked - use actual positions, not recalculated heights
+      for (let i = 0; i < data.mainTimeline.length; i++) {
+        const period = data.mainTimeline[i];
         const periodY = positions.get(`period-${period.id}`);
-        if (periodY && y >= periodY - 20 && y <= periodY + 200) {
-          clickedChapterId = chapters.find(c => c.id === period.id)?.id;
-          const periodStart = period.startDate.getTime();
-          const periodEnd = period.endDate.getTime();
-          const periodDuration = periodEnd - periodStart;
-          const clickOffset = y - periodY;
-          const periodHeight = LAYOUT_CONSTANTS.periodHeaderHeight + 
-            (period.collapsed ? 0 : period.entries.length * LAYOUT_CONSTANTS.entryHeight) + 
-            LAYOUT_CONSTANTS.periodGap;
-          const ratio = Math.max(0, Math.min(1, clickOffset / Math.max(periodHeight, 100)));
-          clickedDate = new Date(periodStart + ratio * periodDuration);
+        
+        console.log(`[handleTimelineClick] Checking period ${period.id} (${period.title}) at Y=${periodY}`);
+        
+        if (periodY !== undefined) {
+          // Get the next period's Y position to know where this period ends
+          const nextPeriodY = i < data.mainTimeline.length - 1
+            ? positions.get(`period-${data.mainTimeline[i + 1].id}`)
+            : totalHeight;
+          
+          console.log(`[handleTimelineClick] Period range: ${periodY - 20} to ${nextPeriodY}`);
+          
+          // Check if click is within this period's range
+          if (y >= periodY - 20 && y < (nextPeriodY ?? totalHeight)) {
+            console.log(`[handleTimelineClick] ✓ Click is within period ${period.id}!`);
+            
+            // Only assign chapter if it's a real chapter (not 'uncategorized')
+            if (typeof period.id === 'number') {
+              clickedChapterId = period.id;
+              console.log(`[handleTimelineClick] Set clickedChapterId to: ${clickedChapterId}`);
+            } else {
+              console.log(`[handleTimelineClick] Period ID is not a number (${typeof period.id}), skipping`);
+            }
+            
+            // Calculate date based on position within period
+            const periodStart = period.startDate.getTime();
+            const periodEnd = period.endDate.getTime();
+            const periodDuration = periodEnd - periodStart;
+            const clickOffset = y - periodY;
+            const periodHeight = (nextPeriodY ?? totalHeight) - periodY;
+            const ratio = Math.max(0, Math.min(1, clickOffset / Math.max(periodHeight, 100)));
+            clickedDate = new Date(periodStart + ratio * periodDuration);
+            
+            break; // Found the period, stop searching
+          }
         }
+      }
+      
+      console.log('[handleTimelineClick] Final values:', {
+        clickedDate,
+        clickedChapterId
       });
       
-      if (clickedDate || clickedChapterId) {
-        setCreateEntryDate(clickedDate || new Date());
-        setCreateEntryChapterId(clickedChapterId);
-        setIsCreatingEntry(true);
-        setExpandedEntry(null);
-      } else {
-        setCreateEntryDate(new Date());
-        setCreateEntryChapterId(undefined);
-        setIsCreatingEntry(true);
-        setExpandedEntry(null);
-      }
-    } else {
-      setCreateEntryDate(new Date());
-      setCreateEntryChapterId(undefined);
+      setCreateEntryDate(clickedDate || new Date());
+      setCreateEntryChapterId(clickedChapterId);
+      setCreateEntryBranchId(undefined);
       setIsCreatingEntry(true);
       setExpandedEntry(null);
+      
+      console.log('[handleTimelineClick] State set:', {
+        createEntryDate: clickedDate || new Date(),
+        createEntryChapterId: clickedChapterId,
+        isCreatingEntry: true
+      });
+    } else {
+      console.log('[handleTimelineClick] Not near spine, x distance:', Math.abs(x - LAYOUT_CONSTANTS.spineX));
     }
   };
 
@@ -432,6 +552,28 @@ export default function LifeTimeline({
     }));
   };
 
+  const handleCreateChapter = async (chapterData: any) => {
+    // Check if this is a branch chapter (has branch_id) or main timeline chapter
+    const apiData: any = {
+      ...chapterData,
+    };
+    
+    // Set the correct type based on whether it's a branch chapter or main chapter
+    if (chapterData.branch_id) {
+      apiData.type = 'branch_period';
+      apiData.parent_branch = chapterData.branch_id;
+      // Remove branch_id as it's now in parent_branch
+      delete apiData.branch_id;
+    } else {
+      apiData.type = 'main_period';
+    }
+    
+    console.log('[handleCreateChapter] Creating chapter with data:', apiData);
+    
+    await chaptersAPI.create(apiData);
+    await refresh();
+  };
+
   useEffect(() => {
     if (data.branches.length > 0) {
       const startX = LAYOUT_CONSTANTS.spineX + 300;
@@ -464,6 +606,7 @@ export default function LifeTimeline({
   const handleCreateEntryFromEmpty = () => {
     setCreateEntryDate(new Date());
     setCreateEntryChapterId(undefined);
+    setCreateEntryBranchId(undefined);
     setIsCreatingEntry(true);
   };
 
@@ -471,6 +614,26 @@ export default function LifeTimeline({
     if (isCreatingEntry || !expandedEntry) return null;
     const result = findEntryOrPeriodById(expandedEntry);
     return result.entry || null;
+  };
+
+  const handleCreateEntryInChapter = (chapterId: number) => {
+    console.log('[handleCreateEntryInChapter] Creating entry in chapter:', chapterId);
+    
+    // Find the chapter to get its date range
+    const chapter = chapters.find(c => c.id === chapterId);
+    const entryDate = chapter ? new Date(chapter.start_date) : new Date();
+    
+    setCreateEntryDate(entryDate);
+    setCreateEntryChapterId(chapterId);
+    setCreateEntryBranchId(undefined);
+    setIsCreatingEntry(true);
+    setExpandedEntry(null);
+    
+    console.log('[handleCreateEntryInChapter] State set:', {
+      createEntryDate: entryDate,
+      createEntryChapterId: chapterId,
+      isCreatingEntry: true
+    });
   };
 
   return (
@@ -556,8 +719,12 @@ export default function LifeTimeline({
                 onStartDragBranch={(id, offsetX) => setDragState({ type: 'branch', id, offsetX })}
                 onStartBranchCreation={handleStartBranchCreation}
                 onUpdateBranchName={handleUpdateBranchName}
+                onDeleteBranch={handleDeleteBranch}
                 onUpdateChapterName={handleUpdateChapterName}
+                onDeleteChapter={handleDeleteChapter}
                 onAddBranchEntry={handleAddBranchEntry}
+                onCreateChapter={handleCreateChapter}
+                onCreateEntryInChapter={handleCreateEntryInChapter} // ADD THIS
               />
             )}
           </div>

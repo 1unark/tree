@@ -1,3 +1,5 @@
+import { TimelinePeriod } from '../types/timeline.types';
+
 export const LAYOUT_CONSTANTS = {
   spineX: 330,
   entryHeight: 72,
@@ -34,4 +36,10 @@ export function calculateLayout(
   );
   
   return { positions, totalHeight: minHeight };
+}
+
+export function calculatePlusButtonY(positions: Map<string, number>): number {
+  const allPositions = Array.from(positions.values());
+  const lastContentY = allPositions.length > 0 ? Math.max(...allPositions) : 0;
+  return lastContentY + 72 + 18;
 }

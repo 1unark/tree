@@ -1,10 +1,11 @@
-// components/Canvas.tsx
+// components/Canvas.tsx - COMPLETE REWRITE
 import React from 'react';
-import { Plus } from 'lucide-react';
-import { TimelineData, DragState } from '../types/timeline.types';
-import { LAYOUT_CONSTANTS } from '../utils/layoutCalculations';
+import { Plus, ChevronDown } from 'lucide-react';
+import { TimelineData, DragState, TimelinePeriod } from '../types/timeline.types';
+import { LAYOUT_CONSTANTS, calculatePlusButtonY } from '../utils/layoutCalculations';
 import MainTimelinePeriod from './main/Period';
 import BranchTimeline from './branch/BranchTimeline';
+import AddButton from '../shared/AddButton';
 import InlineChapterCreator from './ChapterCreator';
 
 interface TimelineCanvasProps {
@@ -24,10 +25,12 @@ interface TimelineCanvasProps {
   onStartDragBranch: (branchId: number, offsetX: number) => void;
   onStartBranchCreation: (entryId: string | number, x: number, y: number) => void;
   onUpdateBranchName?: (branchId: number, newName: string) => void;
-  onUpdatePeriodTitle?: (periodId: number, newTitle: string) => void;
-  onCreateChapter?: (title: string, startDate: Date) => Promise<void>;
-  onCreateBranchPeriod?: (branchId: number, title: string, startDate: Date) => Promise<void>;
+  onDeleteBranch?: (branchId: number) => void;
+  onUpdateChapterName?: (chapterId: number, newName: string) => void;
+  onDeleteChapter?: (chapterId: number) => void;
   onAddBranchEntry?: (branchId: number, y: number) => void;
+  onCreateChapter?: (chapterData: any) => Promise<void>;
+  onCreateEntryInChapter?: (chapterId: number) => void; 
 }
 
 export default function TimelineCanvas({
@@ -47,10 +50,12 @@ export default function TimelineCanvas({
   onStartDragBranch,
   onStartBranchCreation,
   onUpdateBranchName,
-  onUpdatePeriodTitle,
+  onDeleteBranch,
+  onUpdateChapterName,
+  onDeleteChapter,
+  onAddBranchEntry,
   onCreateChapter,
-  onCreateBranchPeriod,
-  onAddBranchEntry
+  onCreateEntryInChapter 
 }: TimelineCanvasProps) {
   const { spineX } = LAYOUT_CONSTANTS;
   const infiniteHeight = 999999;
@@ -58,10 +63,10 @@ export default function TimelineCanvas({
   
   const allPositions = Array.from(positions.values());
   const lastContentY = allPositions.length > 0 ? Math.max(...allPositions) : 0;
-  const plusButtonY = lastContentY + 72 + 18;
+  const plusButtonY = calculatePlusButtonY(positions);
 
   const [showMenu, setShowMenu] = React.useState(false);
-  const [showChapterCreator, setShowChapterCreator] = React.useState(false);
+  const [isCreatingChapter, setIsCreatingChapter] = React.useState(false);
 
   const handlePlusClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -73,15 +78,32 @@ export default function TimelineCanvas({
     if (type === 'entry') {
       onTimelineClick({ clientX: spineX, clientY: plusButtonY } as any);
     } else {
-      setShowChapterCreator(true);
+      setIsCreatingChapter(true);
     }
   };
 
-  const handleChapterCreate = async (title: string) => {
-    if (onCreateChapter) {
-      await onCreateChapter(title, new Date());
+  const handleSaveChapter = async (title: string) => {
+    if (!onCreateChapter) return;
+    
+    const today = new Date();
+    const nextYear = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+    
+    try {
+      await onCreateChapter({
+        title: title,
+        start_date: today.toISOString().split('T')[0],
+        end_date: nextYear.toISOString().split('T')[0],
+        collapsed: false
+      });
+      
+      setIsCreatingChapter(false);
+    } catch (error) {
+      console.error('Error creating chapter:', error);
     }
-    setShowChapterCreator(false);
+  };
+
+  const handleCancelChapter = () => {
+    setIsCreatingChapter(false);
   };
 
   return (
@@ -92,9 +114,10 @@ export default function TimelineCanvas({
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
-      onClick={() => {
-        setShowMenu(false);
-        setShowChapterCreator(false);
+      onClick={(e) => {
+        if (!isCreatingChapter) {
+          setShowMenu(false);
+        }
       }}
       style={{ 
         cursor: dragState.type === 'branch' ? 'grabbing' : dragState.type === 'creating-branch' ? 'crosshair' : 'default',
@@ -153,10 +176,22 @@ export default function TimelineCanvas({
               onTogglePeriod={() => onToggleMainPeriod(period.id)}
               onToggleEntry={onToggleEntry}
               onStartBranchDrag={onStartBranchCreation}
-              onUpdatePeriodTitle={onUpdatePeriodTitle}
+              onUpdateChapterName={onUpdateChapterName}
+              onDeleteChapter={onDeleteChapter}
+              onCreateEntryInChapter={onCreateEntryInChapter}
             />
           );
         })}
+
+        {/* Inline Chapter Creator */}
+        {isCreatingChapter && (
+          <InlineChapterCreator
+            x={80}
+            y={plusButtonY +0}
+            onSave={handleSaveChapter}
+            onCancel={handleCancelChapter}
+          />
+        )}
 
         {data.branches.map(branch => (
           <BranchTimeline
@@ -173,38 +208,24 @@ export default function TimelineCanvas({
             onToggleEntry={onToggleEntry}
             onStartBranchDrag={onStartBranchCreation}
             onUpdateBranchName={onUpdateBranchName}
-            onCreateBranchPeriod={onCreateBranchPeriod}
+            onDeleteBranch={onDeleteBranch}
+            onUpdateChapterName={onUpdateChapterName}
+            onDeleteChapter={onDeleteChapter}
             onAddBranchEntry={onAddBranchEntry}
+            onCreateChapter={onCreateChapter}
           />
         ))}
 
-        <g 
-          style={{ cursor: 'pointer' }}
-          onClick={handlePlusClick}
-        >
-          <circle
-            cx={spineX}
-            cy={plusButtonY}
-            r="16"
-            fill="transparent"
+        {!isCreatingChapter && (
+          <AddButton
+            x={spineX}
+            y={plusButtonY}
+            onAddEntry={() => handleMenuSelect('entry')}
+            onAddChapter={() => handleMenuSelect('chapter')}
           />
-          
-          <circle
-            cx={spineX}
-            cy={plusButtonY}
-            r="10"
-            fill="#f0f0f0"
-            stroke="#d0d0d0"
-            strokeWidth="1"
-            className="plus-button"
-          />
-          
-          <g transform={`translate(${spineX - 5}, ${plusButtonY - 5})`} style={{ pointerEvents: 'none' }}>
-            <Plus size={10} color="#666666" strokeWidth={3} />
-          </g>
-        </g>
-
-        {showMenu && (
+        )}
+                
+        {showMenu && !isCreatingChapter && (
           <g transform={`translate(${spineX + 20}, ${plusButtonY - 30})`}>
             <rect
               width="100"
@@ -270,15 +291,6 @@ export default function TimelineCanvas({
               + Chapter
             </text>
           </g>
-        )}
-
-        {showChapterCreator && (
-          <InlineChapterCreator
-            x={spineX}
-            y={plusButtonY + 30}
-            onSave={handleChapterCreate}
-            onCancel={() => setShowChapterCreator(false)}
-          />
         )}
       </g>
 

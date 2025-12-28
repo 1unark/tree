@@ -34,6 +34,7 @@ export default function BranchEntry({
 
   return (
     <g>
+      {/* Dot on the branch line */}
       {!isDragging && (
         <circle 
           cx={branchX}
@@ -45,6 +46,7 @@ export default function BranchEntry({
         />
       )}
 
+      {/* Invisible larger circle for easier interaction */}
       <circle
         cx={branchX}
         cy={dotY}
@@ -67,6 +69,7 @@ export default function BranchEntry({
         }}
       />
 
+      {/* Hover highlight */}
       <circle
         cx={branchX}
         cy={dotY}
@@ -78,6 +81,7 @@ export default function BranchEntry({
         style={{ pointerEvents: 'none', transition: 'opacity 0.2s' }}
       />
 
+      {/* Entry card - positioned to the right of the line */}
       <rect
         x={branchX + 24}
         y={entryY}
@@ -97,6 +101,7 @@ export default function BranchEntry({
         }}
       />
 
+      {/* Entry title */}
       <text
         x={branchX + 44}
         y={entryY + 20}
@@ -109,6 +114,7 @@ export default function BranchEntry({
         {entry.title}
       </text>
 
+      {/* Entry date */}
       <text
         x={branchX + 44}
         y={entryY + 36}
@@ -124,6 +130,7 @@ export default function BranchEntry({
         })}
       </text>
 
+      {/* Entry preview */}
       <text
         x={branchX + 44}
         y={entryY + 52}

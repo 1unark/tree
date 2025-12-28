@@ -1,6 +1,5 @@
 // components/InlineChapterCreator.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Check, X } from 'lucide-react';
 
 interface InlineChapterCreatorProps {
   x: number;
@@ -15,12 +14,13 @@ export default function InlineChapterCreator({
   onSave,
   onCancel
 }: InlineChapterCreatorProps) {
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState('New Chapter');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.focus();
+      inputRef.current.select();
     }
   }, []);
 
@@ -42,21 +42,16 @@ export default function InlineChapterCreator({
 
   return (
     <foreignObject
-      x={x - 120}
+      x={x}
       y={y}
-      width="240"
-      height="50"
+      width="230"
+      height="30"
       onClick={(e) => e.stopPropagation()}
     >
       <div style={{
-        background: 'white',
-        border: '1.5px solid #3b82f6',
-        borderRadius: '8px',
-        padding: '8px',
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        gap: '5px'
       }}>
         <input
           ref={inputRef}
@@ -64,51 +59,45 @@ export default function InlineChapterCreator({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Chapter name..."
+          placeholder="New Chapter"
           maxLength={50}
           style={{
             flex: 1,
-            border: 'none',
+            border: '1px solid #e0e0e0',
             outline: 'none',
             fontSize: '13px',
-            fontWeight: '500',
-            color: '#1a1a1a',
-            background: 'transparent'
+            fontWeight: '600',
+            padding: '4px 6px',
+            background: 'white',
+            fontFamily: 'inherit',
+            borderRadius: '3px',
           }}
         />
         <button
           onClick={handleSubmit}
           style={{
-            background: '#3b82f6',
-            border: 'none',
-            borderRadius: '4px',
             width: '24px',
             height: '24px',
+            borderRadius: '3px',
+            border: 'none',
+            background: '#6b7280',
+            cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: 'pointer',
-            padding: 0
+            padding: 0,
+            flexShrink: 0
           }}
         >
-          <Check size={14} color="white" strokeWidth={3} />
-        </button>
-        <button
-          onClick={onCancel}
-          style={{
-            background: '#f5f5f5',
-            border: 'none',
-            borderRadius: '4px',
-            width: '24px',
-            height: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            padding: 0
-          }}
-        >
-          <X size={14} color="#666" strokeWidth={3} />
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <polyline
+              points="3,8 6,11 13,4"
+              stroke="white"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
       </div>
     </foreignObject>
