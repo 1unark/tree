@@ -1,3 +1,4 @@
+// lib/timelineTransform.ts - FIXED TO MATCH YOUR TYPES
 import { Chapter, Event } from '@/types';
 
 interface TimelineEntry {
@@ -51,13 +52,18 @@ function transformEntry(event: Event): TimelineEntry {
 }
 
 function formatDateRange(startDate: Date, endDate: Date): string {
+  const startMonth = startDate.toLocaleDateString('en-US', { month: 'short' });
   const startYear = startDate.getFullYear();
+  const endMonth = endDate.toLocaleDateString('en-US', { month: 'short' });
   const endYear = endDate.getFullYear();
   
   if (startYear === endYear) {
-    return `${startYear}`;
+    if (startMonth === endMonth) {
+      return `${startMonth} ${startYear}`;
+    }
+    return `${startMonth} - ${endMonth} ${startYear}`;
   } else {
-    return `${startYear}-${endYear}`;
+    return `${startMonth} ${startYear} - ${endMonth} ${endYear}`;
   }
 }
 
@@ -65,44 +71,16 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
   const mainPeriods = chapters.filter(c => c.type === 'main_period');
   const branches = chapters.filter(c => c.type === 'branch');
 
-  console.log('=== DEBUG: All Events with chapter field ===');
-  events.forEach(e => {
-    console.log(`Event ${e.id} (${e.title}):`, {
-      chapter: e.chapter,
-      chapterType: typeof e.chapter,
-      branch: e.branch,
-      branchType: typeof e.branch
-    });
-  });
-
-  console.log('=== DEBUG: All Chapters ===');
-  mainPeriods.forEach(c => {
-    console.log(`Chapter ${c.id} (${c.title})`);
-  });
-
   // Build main timeline
   const mainTimeline: TimelinePeriod[] = mainPeriods.map(chapter => {
     // Get events that belong to this chapter
-    const chapterEvents = events.filter(e => {
-      if (!e.chapter) return false;
-      
-      // If chapter is a number, compare directly
-      if (typeof e.chapter === 'number') {
-        return e.chapter === chapter.id;
-      }
-      
-      // If chapter is an object with id property
-      if (typeof e.chapter === 'object' && e.chapter !== null && 'id' in e.chapter) {
-        return e.chapter.id === chapter.id;
-      }
-      
-      return false;
-    });
+    const chapterEvents = events.filter(e => e.chapter === chapter.id);
     
     const entries: TimelineEntry[] = chapterEvents.map(event => transformEntry(event));
 
     const startDate = parseLocalDate(chapter.start_date);
     const endDate = chapter.end_date ? parseLocalDate(chapter.end_date) : new Date();
+    
     return {
       id: chapter.id,
       type: 'period',
@@ -115,24 +93,15 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
     };
   });
 
-  // Handle uncategorized events
-  const uncategorizedEvents = events.filter(e => {
-    // Has a chapter - not uncategorized
-    if (e.chapter) {
-      if (typeof e.chapter === 'number' || (typeof e.chapter === 'object' && e.chapter !== null)) {
-        return false;
-      }
-    }
-    
-    // Has a branch - not uncategorized
-    if (e.branch) {
-      if (typeof e.branch === 'number' || (typeof e.branch === 'object' && e.branch !== null)) {
-        return false;
-      }
-    }
-    
-    return true;
-  });
+  // Sort chapters chronologically by start date (day-level precision)
+  mainTimeline.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+
+  // Handle uncategorized events - add AFTER sorting
+  // Get all chapter IDs that exist (including branch periods)
+  const allChapterIds = new Set(chapters.map(c => c.id));
+  
+  // Events without a chapter OR with a chapter that doesn't exist
+  const uncategorizedEvents = events.filter(e => !e.chapter || !allChapterIds.has(e.chapter));
 
   if (uncategorizedEvents.length > 0) {
     const uncategorizedEntries: TimelineEntry[] = uncategorizedEvents.map(event => transformEntry(event));
@@ -140,13 +109,14 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
     const earliestDate = sortedEntries[0]?.date || new Date();
     const latestDate = sortedEntries[sortedEntries.length - 1]?.date || new Date();
     
+    // Use a far future date for sorting to ensure it appears last
     mainTimeline.push({
       id: 'uncategorized',
       type: 'period',
       title: 'Uncategorized',
-      dateRange: `${earliestDate.getFullYear()} - ${latestDate.getFullYear()}`,
-      startDate: earliestDate,
-      endDate: latestDate,
+      dateRange: formatDateRange(earliestDate, latestDate),
+      startDate: new Date(9999, 0, 1), // Far future date for sorting purposes
+      endDate: new Date(9999, 11, 31),
       collapsed: false,
       entries: sortedEntries,
     });
@@ -154,36 +124,14 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
 
   // Build branches
   const transformedBranches: TimelineBranch[] = branches.map(branch => {
-    const branchPeriodsData = chapters.filter(c => {
-      if (c.type !== 'branch_period') return false;
-      if (!c.parent_branch) return false;
-      
-      if (typeof c.parent_branch === 'number') {
-        return c.parent_branch === branch.id;
-      }
-      
-      if (typeof c.parent_branch === 'object' && c.parent_branch !== null && 'id' in c.parent_branch) {
-        return c.parent_branch.id === branch.id;
-      }
-      
-      return false;
-    });
+    // Get branch periods (chapters that belong to this branch)
+    const branchPeriodsData = chapters.filter(c => 
+      c.type === 'branch_period' && c.parent_branch === branch.id
+    );
     
     const branchPeriods: TimelinePeriod[] = branchPeriodsData.map(period => {
-      const periodEvents = events.filter(e => {
-        if (!e.chapter) return false;
-        
-        if (typeof e.chapter === 'number') {
-          return e.chapter === period.id;
-        }
-        
-        if (typeof e.chapter === 'object' && e.chapter !== null && 'id' in e.chapter) {
-          return e.chapter.id === period.id;
-        }
-        
-        return false;
-      });
-      
+      // Get events that belong to this branch period
+      const periodEvents = events.filter(e => e.chapter === period.id);
       const periodEntries = periodEvents.map(e => transformEntry(e));
       
       return {
@@ -201,42 +149,31 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
       };
     });
     
-    const directBranchEvents = events.filter(e => {
-      if (!e.branch) return false;
-      if (e.chapter) return false;
-      
-      if (typeof e.branch === 'number') {
-        return e.branch === branch.id;
-      }
-      
-      if (typeof e.branch === 'object' && e.branch !== null && 'id' in e.branch) {
-        return e.branch.id === branch.id;
-      }
-      
-      return false;
-    });
+    // Sort branch periods chronologically by start date (day-level precision)
+    branchPeriods.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
     
+    // Get events directly assigned to the branch (chapter points to the branch itself)
+    const directBranchEvents = events.filter(e => e.chapter === branch.id);
     const directBranchEntries = directBranchEvents.map(e => transformEntry(e));
     
+    // Determine source for the branch connection line
     let sourceEntryId: string | number | undefined;
+    const branchAny = branch as any;
     
-    if (branch.source_entry) {
-      const sourceId = typeof branch.source_entry === 'object' && branch.source_entry !== null && 'id' in branch.source_entry
-        ? branch.source_entry.id
-        : branch.source_entry;
-      sourceEntryId = sourceId;
-    } else if (branch.source_chapter) {
-      const sourceId = typeof branch.source_chapter === 'object' && branch.source_chapter !== null && 'id' in branch.source_chapter
-        ? branch.source_chapter.id
-        : branch.source_chapter;
-      sourceEntryId = `period-${sourceId}`;
+    if (branchAny.source_entry) {
+      sourceEntryId = branchAny.source_entry;
+    } else if (branchAny.source_chapter) {
+      sourceEntryId = `period-${branchAny.source_chapter}`;
     }
 
+    // Build periods array
     let periods: TimelinePeriod[];
     
     if (branchPeriods.length > 0) {
+      // Has explicit branch periods
       periods = branchPeriods;
     } else if (directBranchEntries.length > 0) {
+      // Has events directly in the branch - create a default period for them
       const sortedEntries = directBranchEntries.sort((a, b) => a.date.getTime() - b.date.getTime());
       const earliestDate = sortedEntries[0]?.date || parseLocalDate(branch.start_date);
       const latestDate = sortedEntries[sortedEntries.length - 1]?.date || (branch.end_date ? parseLocalDate(branch.end_date) : new Date());
@@ -252,6 +189,7 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
         entries: sortedEntries
       }];
     } else {
+      // Empty branch - create a default period
       periods = [{
         id: `branch-${branch.id}-default`,
         type: 'period',
@@ -277,8 +215,6 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
       periods: periods
     };
   });
-
-  mainTimeline.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
   return {
     mainTimeline,
