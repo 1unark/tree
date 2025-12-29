@@ -1,4 +1,4 @@
-// components/main/Period.tsx - UPDATED
+// components/main/Period.tsx - FIXED
 import React from 'react';
 import { TimelinePeriod, DragState } from '../../types/timeline.types';
 import MainEntry from './Entry';
@@ -15,6 +15,7 @@ interface MainTimelinePeriodProps {
   onToggleEntry: (entryId: string | number) => void;
   onStartBranchDrag: (entryId: string | number, x: number, y: number) => void;
   onUpdateChapterName?: (chapterId: number, newName: string) => void;
+  onUpdateChapterDates?: (chapterId: number, startDate: string, endDate: string) => void;
   onDeleteChapter?: (chapterId: number) => void;
   onCreateEntryInChapter?: (chapterId: number) => void;
 }
@@ -30,6 +31,7 @@ export default function MainTimelinePeriod({
   onToggleEntry,
   onStartBranchDrag,
   onUpdateChapterName,
+  onUpdateChapterDates,
   onDeleteChapter,
   onCreateEntryInChapter
 }: MainTimelinePeriodProps) {
@@ -39,6 +41,12 @@ export default function MainTimelinePeriod({
   const handleUpdateName = (newName: string) => {
     if (onUpdateChapterName && typeof period.id === 'number') {
       onUpdateChapterName(period.id, newName);
+    }
+  };
+
+  const handleUpdateDates = (startDate: string, endDate: string) => {
+    if (onUpdateChapterDates && typeof period.id === 'number') {
+      onUpdateChapterDates(period.id, startDate, endDate);
     }
   };
 
@@ -83,18 +91,24 @@ export default function MainTimelinePeriod({
   return (
     <g>
       <ChapterHeader
+        periodId={period.id}
         x={spineX - 160}
-        y={periodY - 20}
+        y={periodY - 10}
         title={period.title || 'Untitled'}
         dateRange={period.dateRange}
+        startDate={period.startDate}
+        endDate={period.endDate}
         entryCount={period.entries.length}
         collapsed={period.collapsed}
         onToggle={onTogglePeriod}
         onUpdateName={onUpdateChapterName ? handleUpdateName : undefined}
+        onUpdateDates={onUpdateChapterDates ? handleUpdateDates : undefined}
         onDelete={onDeleteChapter ? handleDelete : undefined}
         onDotClick={handleDotClick}
+        onStartBranchDrag={onStartBranchDrag}
         dotX={spineX}
         color="#000000"
+        isUncategorized={isUncategorized}
       />
 
       {!period.collapsed && period.entries.map((entry, idx) => {

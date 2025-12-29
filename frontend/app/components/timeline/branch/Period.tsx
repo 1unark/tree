@@ -17,6 +17,7 @@ interface BranchPeriodProps {
   onToggleEntry: (entryId: string | number) => void;
   onStartBranchDrag: (entryId: string | number, x: number, y: number) => void;
   onUpdateChapterName?: (chapterId: number, newName: string) => void;
+  onUpdateChapterDates?: (chapterId: number, startDate: string, endDate: string) => void;
   onDeleteChapter?: (chapterId: number) => void;
 }
 
@@ -31,9 +32,10 @@ export default function BranchPeriod({
   onToggleEntry,
   onStartBranchDrag,
   onUpdateChapterName,
+  onUpdateChapterDates,
   onDeleteChapter
 }: BranchPeriodProps) {
-  // FIXED: Calculate periodY properly
+  // Calculate the starting Y position for the branch
   const getBranchSourceY = (): number => {
     // If sourceEntryId is set, find that entry's position
     if (branch.sourceEntryId) {
@@ -42,7 +44,7 @@ export default function BranchPeriod({
         const periodId = branch.sourceEntryId.replace('period-', '');
         const periodY = positions.get(`period-${periodId}`);
         if (periodY !== undefined) {
-          return periodY + 8; // Offset to match the period's dot position
+          return periodY + LAYOUT_CONSTANTS.periodDotOffset;
         }
       } else {
         // It's an entry - find it in the main timeline
@@ -51,7 +53,7 @@ export default function BranchPeriod({
           if (entry) {
             const entryY = positions.get(`entry-${entry.id}`);
             if (entryY !== undefined) {
-              return entryY + 18; // Offset to match the entry's dot position
+              return entryY + LAYOUT_CONSTANTS.entryDotOffset;
             }
           }
         }
@@ -71,25 +73,41 @@ export default function BranchPeriod({
   // Find which index this period is in the branch
   const branchIndex = branch.periods.findIndex(p => p.id === period.id);
   
-  // Calculate offset from previous periods in this branch
+  // Calculate offset from previous periods in this branch using proper spacing constants
   let offset = 0;
   for (let i = 0; i < branchIndex; i++) {
     const prevPeriod = branch.periods[i];
-    if (!prevPeriod.collapsed) {
-      offset += LAYOUT_CONSTANTS.periodHeaderHeight;
-      offset += prevPeriod.entries.length * LAYOUT_CONSTANTS.entryHeight;
+    
+    // Add space for the period header
+    offset += LAYOUT_CONSTANTS.periodHeaderHeight;
+    
+    if (!prevPeriod.collapsed && prevPeriod.entries.length > 0) {
+      // Add space for all entry cards
+      offset += prevPeriod.entries.length * LAYOUT_CONSTANTS.entryCardHeight;
+      
+      // Add spacing between entries (n-1 gaps for n entries)
+      offset += (prevPeriod.entries.length - 1) * LAYOUT_CONSTANTS.branchEntrySpacing;
+      
+      // Add gap between last entry and next chapter
+      offset += LAYOUT_CONSTANTS.branchEntryToChapterGap;
     } else {
-      offset += LAYOUT_CONSTANTS.periodHeaderHeight;
+      // No entries - add chapter-to-chapter gap
+      offset += LAYOUT_CONSTANTS.branchChapterToChapterGap;
     }
   }
 
-  // For the first period, start at the branch source position
-  // For subsequent periods, add to the previous period's position
+  // Calculate this period's Y position
   const periodY = branchIndex === 0 ? branchSourceY : branchSourceY + offset;
 
   const handleUpdateName = (newName: string) => {
     if (onUpdateChapterName && typeof period.id === 'number') {
       onUpdateChapterName(period.id, newName);
+    }
+  };
+
+  const handleUpdateDates = (startDate: string, endDate: string) => {
+    if (onUpdateChapterDates && typeof period.id === 'number') {
+      onUpdateChapterDates(period.id, startDate, endDate);
     }
   };
 
@@ -104,7 +122,7 @@ export default function BranchPeriod({
       {/* Connection dot to branch line */}
       <circle
         cx={branch.x}
-        cy={periodY + 15}
+        cy={periodY + LAYOUT_CONSTANTS.periodDotOffset}
         r="4"
         fill={branch.color}
         opacity="0.6"
@@ -117,17 +135,25 @@ export default function BranchPeriod({
         y={periodY}
         title={period.title}
         dateRange={period.dateRange}
+        startDate={period.startDate}
+        endDate={period.endDate}
         entryCount={period.entries.length}
         collapsed={period.collapsed}
         onToggle={onTogglePeriod}
         onUpdateName={onUpdateChapterName ? handleUpdateName : undefined}
+        onUpdateDates={onUpdateChapterDates ? handleUpdateDates : undefined}
         onDelete={onDeleteChapter ? handleDelete : undefined}
         color="#000000"
+        periodId={period.id}
+        onStartBranchDrag={onStartBranchDrag} 
       />
 
       {/* Entries */}
       {!period.collapsed && period.entries.map((entry, idx) => {
-        const entryY = periodY + LAYOUT_CONSTANTS.periodHeaderHeight + (idx * LAYOUT_CONSTANTS.entryHeight);
+        // Calculate entry Y position using proper spacing
+        const entryY = periodY + LAYOUT_CONSTANTS.periodHeaderHeight + 
+                       (idx * LAYOUT_CONSTANTS.entryCardHeight) + 
+                       (idx * LAYOUT_CONSTANTS.branchEntrySpacing);
         const isExpanded = expandedEntry === entry.id;
         
         return (

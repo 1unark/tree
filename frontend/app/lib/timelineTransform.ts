@@ -34,10 +34,16 @@ interface TimelineData {
   branches: TimelineBranch[];
 }
 
+// Helper function to parse dates in local timezone (fixes timezone shift issue)
+function parseLocalDate(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day); // month is 0-indexed in JS
+}
+
 function transformEntry(event: Event): TimelineEntry {
   return {
     id: event.id,
-    date: new Date(event.date),
+    date: parseLocalDate(event.date),
     title: event.title,
     preview: event.content ? event.content.substring(0, 100).trim() + (event.content.length > 100 ? '...' : '') : '',
     content: event.content || '',
@@ -45,7 +51,14 @@ function transformEntry(event: Event): TimelineEntry {
 }
 
 function formatDateRange(startDate: Date, endDate: Date): string {
-  return `${startDate.getFullYear()} - ${endDate.getFullYear()}`;
+  const startYear = startDate.getFullYear();
+  const endYear = endDate.getFullYear();
+  
+  if (startYear === endYear) {
+    return `${startYear}`;
+  } else {
+    return `${startYear}-${endYear}`;
+  }
 }
 
 export function transformToTimelineData(chapters: Chapter[], events: Event[]): TimelineData {
@@ -88,9 +101,8 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
     
     const entries: TimelineEntry[] = chapterEvents.map(event => transformEntry(event));
 
-    const startDate = new Date(chapter.start_date);
-    const endDate = chapter.end_date ? new Date(chapter.end_date) : new Date();
-
+    const startDate = parseLocalDate(chapter.start_date);
+    const endDate = chapter.end_date ? parseLocalDate(chapter.end_date) : new Date();
     return {
       id: chapter.id,
       type: 'period',
@@ -178,9 +190,12 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
         id: period.id,
         type: 'period',
         title: period.title,
-        startDate: new Date(period.start_date),
-        endDate: period.end_date ? new Date(period.end_date) : new Date(),
-        dateRange: formatDateRange(new Date(period.start_date), period.end_date ? new Date(period.end_date) : new Date()),
+        startDate: parseLocalDate(period.start_date),
+        endDate: period.end_date ? parseLocalDate(period.end_date) : new Date(),
+        dateRange: formatDateRange(
+          parseLocalDate(period.start_date), 
+          period.end_date ? parseLocalDate(period.end_date) : new Date()
+        ),
         collapsed: period.collapsed || false,
         entries: periodEntries.sort((a, b) => a.date.getTime() - b.date.getTime())
       };
@@ -223,8 +238,8 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
       periods = branchPeriods;
     } else if (directBranchEntries.length > 0) {
       const sortedEntries = directBranchEntries.sort((a, b) => a.date.getTime() - b.date.getTime());
-      const earliestDate = sortedEntries[0]?.date || new Date(branch.start_date);
-      const latestDate = sortedEntries[sortedEntries.length - 1]?.date || (branch.end_date ? new Date(branch.end_date) : new Date());
+      const earliestDate = sortedEntries[0]?.date || parseLocalDate(branch.start_date);
+      const latestDate = sortedEntries[sortedEntries.length - 1]?.date || (branch.end_date ? parseLocalDate(branch.end_date) : new Date());
       
       periods = [{
         id: `branch-${branch.id}-entries`,
@@ -241,9 +256,12 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
         id: `branch-${branch.id}-default`,
         type: 'period',
         title: 'New Period',
-        startDate: new Date(branch.start_date),
-        endDate: branch.end_date ? new Date(branch.end_date) : new Date(),
-        dateRange: formatDateRange(new Date(branch.start_date), branch.end_date ? new Date(branch.end_date) : new Date()),
+        startDate: parseLocalDate(branch.start_date),
+        endDate: branch.end_date ? parseLocalDate(branch.end_date) : new Date(),
+        dateRange: formatDateRange(
+          parseLocalDate(branch.start_date), 
+          branch.end_date ? parseLocalDate(branch.end_date) : new Date()
+        ),
         collapsed: false,
         entries: []
       }];

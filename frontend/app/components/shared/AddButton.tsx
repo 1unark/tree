@@ -6,9 +6,10 @@ interface AddButtonProps {
   y: number;
   onAddEntry: () => void;
   onAddChapter: () => void;
+  hasChapters?: boolean; // Add this prop
 }
 
-export default function AddButton({ x, y, onAddEntry, onAddChapter }: AddButtonProps) {
+export default function AddButton({ x, y, onAddEntry, onAddChapter, hasChapters = true }: AddButtonProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<SVGGElement>(null);
 
@@ -38,6 +39,8 @@ export default function AddButton({ x, y, onAddEntry, onAddChapter }: AddButtonP
   };
 
   const handleMenuSelect = (type: 'entry' | 'chapter') => {
+    if (type === 'entry' && !hasChapters) return; // Prevent selection if no chapters
+    
     setShowMenu(false);
     if (type === 'entry') {
       onAddEntry();
@@ -82,12 +85,12 @@ export default function AddButton({ x, y, onAddEntry, onAddChapter }: AddButtonP
             width="100"
             height="30"
             fill="transparent"
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: hasChapters ? 'pointer' : 'not-allowed' }}
             onClick={(e) => {
               e.stopPropagation();
               handleMenuSelect('entry');
             }}
-            onMouseEnter={(e) => e.currentTarget.setAttribute('fill', '#f5f5f5')}
+            onMouseEnter={(e) => hasChapters && e.currentTarget.setAttribute('fill', '#f5f5f5')}
             onMouseLeave={(e) => e.currentTarget.setAttribute('fill', 'transparent')}
           />
           <text
@@ -95,11 +98,22 @@ export default function AddButton({ x, y, onAddEntry, onAddChapter }: AddButtonP
             y="18"
             fontSize="11"
             fontWeight="500"
-            fill="#333"
+            fill={hasChapters ? "#333" : "#999"}
             style={{ pointerEvents: 'none' }}
           >
             + Entry
           </text>
+          {!hasChapters && (
+            <text
+              x="70"
+              y="18"
+              fontSize="9"
+              fill="#999"
+              style={{ pointerEvents: 'none' }}
+            >
+              *
+            </text>
+          )}
           <line x1="10" y1="30" x2="90" y2="30" stroke="#e5e5e5" strokeWidth="1" />
           <rect
             y="30"

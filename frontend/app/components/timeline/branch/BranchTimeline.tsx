@@ -1,11 +1,9 @@
 // components/branch/BranchTimeline.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { GripVertical, ChevronRight, ChevronDown, Edit2, Trash2 } from 'lucide-react';
-import ChapterHeader from '../../shared/ChapterHeader';
 import { TimelineBranch, TimelinePeriod, DragState } from '../../types/timeline.types';
 import BranchPeriod from './Period';
-import { findMainPeriodForDate } from '../../utils/timelineHelpers';
-import { LAYOUT_CONSTANTS } from '../../utils/layoutCalculations';
+import { calculateBranchPositions, LAYOUT_CONSTANTS } from '../../utils/layoutCalculations';
 import AddButton from '@/components/shared/AddButton';
 import InlineChapterCreator from '../ChapterCreator';
 
@@ -25,6 +23,7 @@ interface BranchTimelineProps {
   onDeleteBranch?: (branchId: number) => void;
   onAddBranchEntry?: (branchId: number, y: number) => void;
   onUpdateChapterName?: (chapterId: number, newName: string) => void;
+  onUpdateChapterDates?: (chapterId: number, startDate: string, endDate: string) => void;
   onDeleteChapter?: (chapterId: number) => void;
   onCreateChapter?: (chapterData: any) => Promise<void>;
 }
@@ -45,6 +44,7 @@ export default function BranchTimeline({
   onDeleteBranch,
   onAddBranchEntry,
   onUpdateChapterName,
+  onUpdateChapterDates,
   onDeleteChapter,
   onCreateChapter
 }: BranchTimelineProps) {
@@ -53,6 +53,11 @@ export default function BranchTimeline({
   const [showActions, setShowActions] = useState(false);
   const [isCreatingChapter, setIsCreatingChapter] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Calculate all branch positions from the centralized function
+  const branchPositions = calculateBranchPositions(branch, mainTimeline, positions);
+  const branchSourcePos = branchPositions.get(`branch-${branch.id}-source`);
+  const branchStartY = branchSourcePos?.dotY || LAYOUT_CONSTANTS.startY;
   
   useEffect(() => {
     if (isEditingName && inputRef.current) {
@@ -65,44 +70,7 @@ export default function BranchTimeline({
     setEditedName(branch.name);
   }, [branch.name]);
   
-  // Allow rendering even with empty periods - the branch can still be created
   const hasContent = branch.periods && branch.periods.length > 0;
-  
-  // Calculate branchStartY based on the actual source
-  const getBranchStartY = (): number => {
-    if (branch.sourceEntryId) {
-      if (typeof branch.sourceEntryId === 'string' && branch.sourceEntryId.startsWith('period-')) {
-        const periodId = branch.sourceEntryId.replace('period-', '');
-        const periodY = positions.get(`period-${periodId}`);
-        if (periodY !== undefined) {
-          return periodY + 8;
-        }
-      } else {
-        for (const period of mainTimeline) {
-          const entry = period.entries.find(e => e.id === branch.sourceEntryId);
-          if (entry) {
-            const entryY = positions.get(`entry-${entry.id}`);
-            if (entryY !== undefined) {
-              return entryY + 18;
-            }
-          }
-        }
-      }
-    }
-    
-    // Use branch start_date or first period if available
-    if (hasContent && branch.periods.length > 0) {
-      const firstPeriod = branch.periods[0];
-      const matchingMainPeriod = findMainPeriodForDate(mainTimeline, firstPeriod.startDate);
-      return matchingMainPeriod 
-        ? (positions.get(`period-${matchingMainPeriod.id}`) ?? LAYOUT_CONSTANTS.startY)
-        : LAYOUT_CONSTANTS.startY;
-    }
-    
-    return LAYOUT_CONSTANTS.startY;
-  };
-
-  const branchStartY = getBranchStartY();
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isEditingName) return;
@@ -164,13 +132,14 @@ export default function BranchTimeline({
     if (!onCreateChapter) return;
     
     const today = new Date();
-    const nextYear = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+    const startOfYear = new Date(today.getFullYear(), 0, 1);
+    const endOfYear = new Date(today.getFullYear(), 11, 31);
     
     try {
       await onCreateChapter({
         title: title,
-        start_date: today.toISOString().split('T')[0],
-        end_date: nextYear.toISOString().split('T')[0],
+        start_date: startOfYear.toISOString().split('T')[0],
+        end_date: endOfYear.toISOString().split('T')[0],
         collapsed: false,
         branch_id: branch.id
       });
@@ -185,35 +154,38 @@ export default function BranchTimeline({
     setIsCreatingChapter(false);
   };
 
-  // Calculate plus button Y position
+  // Calculate plus button Y from branchPositions instead of manually
   const getPlusButtonY = (): number => {
-    if (!hasContent) {
-      // Empty branch - plus button right after header
+    if (!hasContent || branch.periods.length === 0) {
       return branchStartY + 20;
     }
     
-    let currentY = branchStartY;
+    // Get the last period's position
+    const lastPeriod = branch.periods[branch.periods.length - 1];
+    const lastPeriodPos = branchPositions.get(`branch-${branch.id}-period-${lastPeriod.id}`);
     
-    branch.periods.forEach((period) => {
-      // Add period header height
-      currentY += LAYOUT_CONSTANTS.periodHeaderHeight;
-      
-      // Add entries height if not collapsed
-      if (!period.collapsed && period.entries.length > 0) {
-        currentY += period.entries.length * LAYOUT_CONSTANTS.entryHeight;
+    if (!lastPeriodPos) {
+      return branchStartY + 20;
+    }
+    
+    let lastY = lastPeriodPos.y + LAYOUT_CONSTANTS.periodHeaderHeight;
+    
+    // Add entries if not collapsed
+    if (!lastPeriod.collapsed && lastPeriod.entries.length > 0) {
+      const lastEntry = lastPeriod.entries[lastPeriod.entries.length - 1];
+      const lastEntryPos = branchPositions.get(`branch-${branch.id}-entry-${lastEntry.id}`);
+      if (lastEntryPos) {
+        lastY = lastEntryPos.y + LAYOUT_CONSTANTS.entryHeight;
       }
-    });
+    }
     
-    return currentY + 18;
+    return lastY + 18;
   };
 
   const plusButtonY = getPlusButtonY();
 
   return (
-    <g
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
-    >
+    <g>
       {/* Connection line from source to branch */}
       <line
         x1={LAYOUT_CONSTANTS.spineX}
@@ -231,145 +203,127 @@ export default function BranchTimeline({
         x1={branch.x}
         y1={branchStartY - 53}
         x2={branch.x}
-        y2={plusButtonY - 10}  // Stop before the plus button
+        y2={plusButtonY - 10}
         stroke={branch.color}
         strokeWidth="2"
         opacity="0.12"
       />
 
-      {/* Branch name header */}
-      <rect
-        x={branch.x - 10}
-        y={branchStartY - 53}
-        width="200"
-        height="36"
-        fill="#ffffff"
-        stroke={branch.color}
-        strokeWidth="1.5"
-        rx="8"
-        style={{ cursor: isEditingName ? 'default' : 'grab' }}
-        onMouseDown={!isEditingName ? handleMouseDown : undefined}
-      />
-      
-      <g
-        onMouseDown={!isEditingName ? handleMouseDown : undefined}
-        style={{ 
-          cursor: isEditingName ? 'default' : 'grab', 
-          pointerEvents: isEditingName ? 'none' : 'auto' 
-        }}
+      {/* Branch name header with hover */}
+      <g       
+        onMouseEnter={() => setShowActions(true)}
+        onMouseLeave={() => setShowActions(false)}
       >
-        <GripVertical 
-          x={branch.x} 
-          y={branchStartY - 41} 
-          size={14} 
-          color={branch.color} 
-          opacity={0.5} 
+        <rect
+          x={branch.x - 10}
+          y={branchStartY - 53}
+          width="200"
+          height="36"
+          fill="#ffffff"
+          stroke={branch.color}
+          strokeWidth="1.5"
+          rx="8"
+          style={{ cursor: isEditingName ? 'default' : 'grab' }}
+          onMouseDown={!isEditingName ? handleMouseDown : undefined}
         />
-      </g>
-      
-      {/* Collapse/expand button */}
-      <rect
-        x={branch.x + 25}
-        y={branchStartY - 43}
-        width={24}
-        height={24}
-        fill="transparent"
-        style={{ cursor: 'pointer' }}
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleBranch();
-        }}
-      />
-      
-      <g style={{ pointerEvents: 'none' }}>
-        {branch.collapsed ? 
-          <ChevronRight 
-            x={branch.x + 29} 
-            y={branchStartY - 42} 
-            size={16} 
+        
+        <g
+          onMouseDown={!isEditingName ? handleMouseDown : undefined}
+          style={{ 
+            cursor: isEditingName ? 'default' : 'grab', 
+            pointerEvents: isEditingName ? 'none' : 'auto' 
+          }}
+        >
+          <GripVertical 
+            x={branch.x} 
+            y={branchStartY - 41} 
+            size={14} 
             color={branch.color} 
-            strokeWidth={2.5} 
-          /> : 
-          <ChevronDown 
-            x={branch.x + 29} 
-            y={branchStartY - 42} 
-            size={16} 
-            color={branch.color} 
-            strokeWidth={2.5} 
+            opacity={0.5} 
           />
-        }
-      </g>
-
-      {/* Branch name text */}
-      {isEditingName ? (
-        <foreignObject
-          x={branch.x + 52}
+        </g>
+        
+        {/* Collapse/expand button */}
+        <rect
+          x={branch.x + 25}
           y={branchStartY - 43}
-          width="130"
-          height="26"
-        >
-          <input
-            ref={inputRef}
-            type="text"
-            value={editedName}
-            onChange={(e) => setEditedName(e.target.value)}
-            onBlur={handleNameSubmit}
-            onKeyDown={handleKeyDown}
-            maxLength={30}
-            style={{
-              width: '100%',
-              fontSize: '13px',
-              fontWeight: '600',
-              color: branch.color,
-              letterSpacing: '-0.01em',
-              border: `1.5px solid ${branch.color}`,
-              borderRadius: '4px',
-              padding: '2px 4px',
-              outline: 'none',
-              background: 'white',
-              boxSizing: 'border-box'
-            }}
-          />
-        </foreignObject>
-      ) : (
-        <text
-          x={branch.x + 52}
-          y={branchStartY - 30}
-          fontSize="13"
-          fontWeight="600"
-          fill={branch.color}
-          letterSpacing="-0.01em"
-          style={{ cursor: 'text', pointerEvents: 'all' }}
-          onClick={handleNameClick}
-        >
-          {branch.name}
-        </text>
-      )}
+          width={24}
+          height={24}
+          fill="transparent"
+          style={{ cursor: 'pointer' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleBranch();
+          }}
+        />
+        
+        <g style={{ pointerEvents: 'none' }}>
+          {branch.collapsed ? 
+            <ChevronRight 
+              x={branch.x + 16} 
+              y={branchStartY - 42} 
+              size={16} 
+              color={branch.color} 
+              strokeWidth={2.5} 
+            /> : 
+            <ChevronDown 
+              x={branch.x + 16} 
+              y={branchStartY - 42} 
+              size={16} 
+              color={branch.color} 
+              strokeWidth={2.5} 
+            />
+          }
+        </g>
 
-      {/* Edit and Delete icons on hover */}
-      {showActions && !isEditingName && (
-        <>
-          <g
-            style={{ cursor: 'pointer' }}
+        {/* Branch name text */}
+        {isEditingName ? (
+          <foreignObject
+            x={branch.x + 52}
+            y={branchStartY - 43}
+            width="130"
+            height="26"
+          >
+            <input
+              ref={inputRef}
+              type="text"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              onBlur={handleNameSubmit}
+              onKeyDown={handleKeyDown}
+              maxLength={30}
+              style={{
+                width: '100%',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: branch.color,
+                letterSpacing: '-0.01em',
+                border: `1.5px solid ${branch.color}`,
+                borderRadius: '4px',
+                padding: '2px 4px',
+                outline: 'none',
+                background: 'white',
+                boxSizing: 'border-box'
+              }}
+            />
+          </foreignObject>
+        ) : (
+          <text
+            x={branch.x + 37}
+            y={branchStartY - 30}
+            fontSize="13"
+            fontWeight="600"
+            fill={branch.color}
+            letterSpacing="-0.01em"
+            style={{ cursor: 'text', pointerEvents: 'all' }}
             onClick={handleNameClick}
           >
-            <circle
-              cx={branch.x + 155}
-              cy={branchStartY - 35}
-              r="10"
-              fill="#f0f0f0"
-              stroke="#d0d0d0"
-              strokeWidth="1"
-            />
-            <Edit2
-              x={branch.x + 150}
-              y={branchStartY - 40}
-              size={10}
-              color="#666666"
-              strokeWidth={2}
-            />
-          </g>
+            {branch.name}
+          </text>
+        )}
 
+        {/* Edit and Delete icons on hover */}
+        {showActions && !isEditingName && (
           <g
             style={{ cursor: 'pointer' }}
             onClick={handleDelete}
@@ -390,15 +344,18 @@ export default function BranchTimeline({
               strokeWidth={2}
             />
           </g>
-        </>
-      )}
+        )}
+      </g>
 
-      {/* Periods */}
+      {/* Periods - using calculated positions */}
       {!branch.collapsed && hasContent && branch.periods.map((period) => {
-        const matchingMainPeriod = findMainPeriodForDate(mainTimeline, period.startDate);
-        const mainPeriodCollapsed = matchingMainPeriod?.collapsed ?? false;
+        // Check if main period is collapsed
+        const mainPeriod = mainTimeline.find(p => 
+          p.startDate <= period.startDate && 
+          (!p.endDate || p.endDate >= period.startDate)
+        );
         
-        if (mainPeriodCollapsed) return null;
+        if (mainPeriod?.collapsed) return null;
         
         return (
           <BranchPeriod
@@ -413,6 +370,7 @@ export default function BranchTimeline({
             onToggleEntry={onToggleEntry}
             onStartBranchDrag={onStartBranchDrag}
             onUpdateChapterName={onUpdateChapterName}
+            onUpdateChapterDates={onUpdateChapterDates}
             onDeleteChapter={onDeleteChapter}
           />
         );
@@ -443,15 +401,6 @@ export default function BranchTimeline({
           }}
         />
       )}
-
-      <style>
-        {`
-          .plus-button:hover {
-            fill: #e0e0e0 !important;
-            stroke: #b0b0b0 !important;
-          }
-        `}
-      </style>
     </g>
   );
 }

@@ -1,4 +1,4 @@
-// components/Canvas.tsx - COMPLETE REWRITE
+// components/Canvas.tsx - UPDATED WITH DATE EDITING
 import React from 'react';
 import { Plus, ChevronDown } from 'lucide-react';
 import { TimelineData, DragState, TimelinePeriod } from '../types/timeline.types';
@@ -27,6 +27,7 @@ interface TimelineCanvasProps {
   onUpdateBranchName?: (branchId: number, newName: string) => void;
   onDeleteBranch?: (branchId: number) => void;
   onUpdateChapterName?: (chapterId: number, newName: string) => void;
+  onUpdateChapterDates?: (chapterId: number, startDate: string, endDate: string) => void;
   onDeleteChapter?: (chapterId: number) => void;
   onAddBranchEntry?: (branchId: number, y: number) => void;
   onCreateChapter?: (chapterData: any) => Promise<void>;
@@ -52,6 +53,7 @@ export default function TimelineCanvas({
   onUpdateBranchName,
   onDeleteBranch,
   onUpdateChapterName,
+  onUpdateChapterDates,
   onDeleteChapter,
   onAddBranchEntry,
   onCreateChapter,
@@ -76,7 +78,12 @@ export default function TimelineCanvas({
   const handleMenuSelect = (type: 'entry' | 'chapter') => {
     setShowMenu(false);
     if (type === 'entry') {
-      onTimelineClick({ clientX: spineX, clientY: plusButtonY } as any);
+      const lastChapter = data.mainTimeline[data.mainTimeline.length - 1];
+      if (lastChapter && typeof lastChapter.id === 'number' && onCreateEntryInChapter) {
+        onCreateEntryInChapter(lastChapter.id);
+      } else {
+        onTimelineClick({ clientX: spineX, clientY: plusButtonY } as any);
+      }
     } else {
       setIsCreatingChapter(true);
     }
@@ -86,13 +93,13 @@ export default function TimelineCanvas({
     if (!onCreateChapter) return;
     
     const today = new Date();
-    const nextYear = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+    const year = today.getFullYear();
     
     try {
       await onCreateChapter({
         title: title,
-        start_date: today.toISOString().split('T')[0],
-        end_date: nextYear.toISOString().split('T')[0],
+        start_date: `${year}-01-01`,
+        end_date: `${year}-12-31`,
         collapsed: false
       });
       
@@ -101,7 +108,6 @@ export default function TimelineCanvas({
       console.error('Error creating chapter:', error);
     }
   };
-
   const handleCancelChapter = () => {
     setIsCreatingChapter(false);
   };
@@ -177,17 +183,17 @@ export default function TimelineCanvas({
               onToggleEntry={onToggleEntry}
               onStartBranchDrag={onStartBranchCreation}
               onUpdateChapterName={onUpdateChapterName}
+              onUpdateChapterDates={onUpdateChapterDates}
               onDeleteChapter={onDeleteChapter}
               onCreateEntryInChapter={onCreateEntryInChapter}
             />
           );
         })}
 
-        {/* Inline Chapter Creator */}
         {isCreatingChapter && (
           <InlineChapterCreator
             x={80}
-            y={plusButtonY +0}
+            y={plusButtonY + 0}
             onSave={handleSaveChapter}
             onCancel={handleCancelChapter}
           />
@@ -210,6 +216,7 @@ export default function TimelineCanvas({
             onUpdateBranchName={onUpdateBranchName}
             onDeleteBranch={onDeleteBranch}
             onUpdateChapterName={onUpdateChapterName}
+            onUpdateChapterDates={onUpdateChapterDates}
             onDeleteChapter={onDeleteChapter}
             onAddBranchEntry={onAddBranchEntry}
             onCreateChapter={onCreateChapter}

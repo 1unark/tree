@@ -19,7 +19,7 @@ export default function TimelineHeader({ branches }: TimelineHeaderProps) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
         <h1 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111' }}>
-          Life Timeline
+          skibidi
         </h1>
         
         <div style={{ 
@@ -28,6 +28,7 @@ export default function TimelineHeader({ branches }: TimelineHeaderProps) {
           paddingLeft: '20px',
           borderLeft: '1px solid #ddd'
         }}>
+          {/*
           {branches.map(branch => (
             <div key={branch.id} style={{
               display: 'flex',
@@ -48,11 +49,12 @@ export default function TimelineHeader({ branches }: TimelineHeaderProps) {
               {branch.name}
             </div>
           ))}
+            */}
         </div>
       </div>
       
       <div style={{ fontSize: '12px', color: '#6b6b6b' }}>
-        Click on the timeline to create entries
+        User
       </div>
     </div>
   );

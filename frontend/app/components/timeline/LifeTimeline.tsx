@@ -12,6 +12,7 @@ import TimelineEmptyState from './EmptyState';
 import TimelineCanvas from './Canvas';
 import TimelineSidebar from './Sidebar';
 
+
 export default function LifeTimeline({ 
   chapters: chaptersProp = [], 
   events: eventsProp = [], 
@@ -40,6 +41,8 @@ export default function LifeTimeline({
   const [createEntryDate, setCreateEntryDate] = useState<Date | undefined>(undefined);
   const [createEntryChapterId, setCreateEntryChapterId] = useState<number | undefined>(undefined);
   const [createEntryBranchId, setCreateEntryBranchId] = useState<number | undefined>(undefined);
+  const [isCreatingChapterFromEmpty, setIsCreatingChapterFromEmpty] = useState(false);
+
   const svgRef = useRef<SVGSVGElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -96,8 +99,8 @@ export default function LifeTimeline({
     const newY = e.clientY - rect.top + scrollTop - paddingOffset;
     
     if (dragState.type === 'branch' && dragState.id && dragState.offsetX !== undefined) {
-      const minX = LAYOUT_CONSTANTS.spineX + 130;
-      const maxX = rect.width - 350;
+      const minX = LAYOUT_CONSTANTS.spineX + 45;
+      const maxX = rect.width - 220;
       const targetX = newX - dragState.offsetX;
       
       setData(prev => ({
@@ -215,6 +218,44 @@ export default function LifeTimeline({
     }
   };
 
+  const handleUpdateChapterDates = async (chapterId: number, startDate: string, endDate: string) => {
+    try {
+      await chaptersAPI.update(chapterId, { 
+        start_date: startDate, 
+        end_date: endDate 
+      });
+      
+      // Update local state
+      setData(prev => ({
+        ...prev,
+        mainTimeline: prev.mainTimeline.map(p => 
+          p.id === chapterId ? { 
+            ...p, 
+            startDate: new Date(startDate),
+            endDate: new Date(endDate),
+            dateRange: `${new Date(startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - ${new Date(endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
+          } : p
+        ),
+        branches: prev.branches.map(branch => ({
+          ...branch,
+          periods: branch.periods.map(p => 
+            p.id === chapterId ? { 
+              ...p, 
+              startDate: new Date(startDate),
+              endDate: new Date(endDate),
+              dateRange: `${new Date(startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - ${new Date(endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
+            } : p
+          )
+        }))
+      }));
+      
+      // Refresh to get sorted data
+      await refresh();
+    } catch (error) {
+      console.error('Error updating chapter dates:', error);
+    }
+  };
+
   const handleDeleteChapter = async (chapterId: number) => {
     try {
       await chaptersAPI.delete(chapterId);
@@ -316,7 +357,6 @@ export default function LifeTimeline({
     
     setDragState({ type: null });
   };
-
   const handleEventSubmit = async (formData: any) => {
     try {
       if (isCreatingEntry) {
@@ -326,16 +366,45 @@ export default function LifeTimeline({
           content: formData.content || ''
         };
         
-        // If we have a chapter ID, use it
         if (createEntryChapterId) {
           eventData.chapter = createEntryChapterId;
-        }
-        // If we have a branch ID (entry in branch without chapter), use it
-        else if (createEntryBranchId) {
+        } else if (createEntryBranchId) {
           eventData.branch = createEntryBranchId;
         }
         
         await createEvent(eventData);
+        
+        // Auto-expand chapter dates if needed
+        if (createEntryChapterId) {
+          const chapter = chapters.find(c => c.id === createEntryChapterId);
+          if (chapter) {
+            const eventDate = new Date(formData.date);
+            const chapterStart = new Date(chapter.start_date);
+            const chapterEnd = new Date(chapter.end_date);
+            
+            let needsUpdate = false;
+            let newStart = chapter.start_date;
+            let newEnd = chapter.end_date;
+            
+            if (eventDate < chapterStart) {
+              newStart = formData.date;
+              needsUpdate = true;
+            }
+            
+            if (eventDate > chapterEnd) {
+              newEnd = formData.date;
+              needsUpdate = true;
+            }
+            
+            if (needsUpdate) {
+              await chaptersAPI.update(chapter.id, {
+                start_date: newStart,
+                end_date: newEnd
+              });
+            }
+          }
+        }
+        
         setIsCreatingEntry(false);
         setCreateEntryDate(undefined);
         setCreateEntryChapterId(undefined);
@@ -344,7 +413,6 @@ export default function LifeTimeline({
       } else if (expandedEntry) {
         let eventId: number | null = null;
         
-        // Find the event ID
         data.mainTimeline.forEach((period: TimelinePeriod) => {
           const found = period.entries.find((e: TimelineEntry) => e.id === expandedEntry);
           if (found && typeof found.id === 'number') eventId = found.id;
@@ -359,6 +427,39 @@ export default function LifeTimeline({
         
         if (eventId) {
           await updateEvent(eventId, formData);
+          
+          // Auto-expand chapter dates if date was changed
+          const eventChapterId = findEntryChapter(expandedEntry);
+          if (eventChapterId && formData.date) {
+            const chapter = chapters.find(c => c.id === eventChapterId);
+            if (chapter) {
+              const eventDate = new Date(formData.date);
+              const chapterStart = new Date(chapter.start_date);
+              const chapterEnd = new Date(chapter.end_date);
+              
+              let needsUpdate = false;
+              let newStart = chapter.start_date;
+              let newEnd = chapter.end_date;
+              
+              if (eventDate < chapterStart) {
+                newStart = formData.date;
+                needsUpdate = true;
+              }
+              
+              if (eventDate > chapterEnd) {
+                newEnd = formData.date;
+                needsUpdate = true;
+              }
+              
+              if (needsUpdate) {
+                await chaptersAPI.update(chapter.id, {
+                  start_date: newStart,
+                  end_date: newEnd
+                });
+              }
+            }
+          }
+          
           await refresh();
         }
       }
@@ -603,6 +704,18 @@ export default function LifeTimeline({
     setExpandedEntry(prev => prev === entryId ? null : entryId);
   };
 
+  //const handleCreateChapterFromEmpty = () => {
+    //setIsCreatingChapterFromEmpty(true);
+  //};
+
+
+  const findExpandedEntry = (): TimelineEntry | null => {
+    if (isCreatingEntry || !expandedEntry) return null;
+    const result = findEntryOrPeriodById(expandedEntry);
+    return result.entry || null;
+  };
+
+
   const handleCreateEntryFromEmpty = () => {
     setCreateEntryDate(new Date());
     setCreateEntryChapterId(undefined);
@@ -610,10 +723,17 @@ export default function LifeTimeline({
     setIsCreatingEntry(true);
   };
 
-  const findExpandedEntry = (): TimelineEntry | null => {
-    if (isCreatingEntry || !expandedEntry) return null;
-    const result = findEntryOrPeriodById(expandedEntry);
-    return result.entry || null;
+  const handleCreateChapterFromEmpty = async () => {
+    // Create a default chapter
+    const newChapterData = {
+      title: 'New Chapter',
+      type: 'main_period',
+      start_date: new Date().toISOString().split('T')[0],
+      end_date: new Date().toISOString().split('T')[0],
+      collapsed: false
+    };
+    
+    await handleCreateChapter(newChapterData);
   };
 
   const handleCreateEntryInChapter = (chapterId: number) => {
@@ -700,7 +820,10 @@ export default function LifeTimeline({
               width: '100%'
             }}>
             {data.mainTimeline.length === 0 && data.branches.length === 0 ? (
-              <TimelineEmptyState onCreateEntry={handleCreateEntryFromEmpty} />
+              <TimelineEmptyState 
+                onCreateEntry={handleCreateEntryFromEmpty}
+                onCreateChapter={handleCreateChapterFromEmpty}
+              />
             ) : (
               <TimelineCanvas
                 data={data}
@@ -721,6 +844,7 @@ export default function LifeTimeline({
                 onUpdateBranchName={handleUpdateBranchName}
                 onDeleteBranch={handleDeleteBranch}
                 onUpdateChapterName={handleUpdateChapterName}
+                onUpdateChapterDates={handleUpdateChapterDates}
                 onDeleteChapter={handleDeleteChapter}
                 onAddBranchEntry={handleAddBranchEntry}
                 onCreateChapter={handleCreateChapter}

@@ -98,7 +98,7 @@ export default function MainEntry({
       <text
         x={spineX - 44}
         y={entryY + 20}
-        fontSize="12"
+        fontSize="14"
         fontWeight="600"
         fill="#000000"
         textAnchor="end"

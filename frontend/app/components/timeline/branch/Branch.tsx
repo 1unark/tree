@@ -1,4 +1,3 @@
-// components/branch/Entry.tsx
 import React from 'react';
 import { TimelineEntry, DragState } from '../../types/timeline.types';
 
@@ -24,6 +23,7 @@ export default function BranchEntry({
   onStartBranchDrag
 }: BranchEntryProps) {
   const dotY = entryY + 18;
+  const indent = 45; // Indent amount to show hierarchy
   const isDragging = dragState?.type === 'creating-branch';
 
   const handleDotMouseDown = (e: React.MouseEvent) => {
@@ -34,7 +34,7 @@ export default function BranchEntry({
 
   return (
     <g>
-      {/* Dot on the branch line */}
+      {/* Main dot on branch line */}
       {!isDragging && (
         <circle 
           cx={branchX}
@@ -46,7 +46,29 @@ export default function BranchEntry({
         />
       )}
 
-      {/* Invisible larger circle for easier interaction */}
+      {/* Connecting line showing hierarchy */}
+      <line
+        x1={branchX}
+        y1={dotY}
+        x2={branchX + indent}
+        y2={dotY}
+        stroke={branchColor}
+        strokeWidth="1.5"
+        opacity="0.3"
+        style={{ pointerEvents: 'none' }}
+      />
+
+      {/* Small dot at end of connector */}
+      <circle
+        cx={branchX + indent}
+        cy={dotY}
+        r="3"
+        fill={branchColor}
+        opacity="0.6"
+        style={{ pointerEvents: 'none' }}
+      />
+
+      {/* Interactive area for dragging */}
       <circle
         cx={branchX}
         cy={dotY}
@@ -59,17 +81,21 @@ export default function BranchEntry({
         onMouseDown={handleDotMouseDown}
         onMouseEnter={(e) => {
           if (!isDragging) {
-            const nextSibling = e.currentTarget.nextElementSibling as SVGCircleElement | null;
-            nextSibling?.setAttribute('opacity', '1');
+            const circles = e.currentTarget.parentElement?.querySelectorAll('circle');
+            if (circles && circles.length > 4) {
+              (circles[4] as SVGCircleElement).setAttribute('opacity', '1');
+            }
           }
         }}
         onMouseLeave={(e) => {
-          const nextSibling = e.currentTarget.nextElementSibling as SVGCircleElement | null;
-          nextSibling?.setAttribute('opacity', '0');
+          const circles = e.currentTarget.parentElement?.querySelectorAll('circle');
+          if (circles && circles.length > 4) {
+            (circles[4] as SVGCircleElement).setAttribute('opacity', '0');
+          }
         }}
       />
 
-      {/* Hover highlight */}
+      {/* Hover highlight ring */}
       <circle
         cx={branchX}
         cy={dotY}
@@ -81,11 +107,11 @@ export default function BranchEntry({
         style={{ pointerEvents: 'none', transition: 'opacity 0.2s' }}
       />
 
-      {/* Entry card - positioned to the right of the line */}
+      {/* Entry card - now indented */}
       <rect
-        x={branchX + 24}
+        x={branchX + indent + 10}
         y={entryY}
-        width={276}
+        width={350}
         height={64}
         fill={isExpanded ? `${branchColor}0a` : 'transparent'}
         stroke="transparent"
@@ -103,7 +129,7 @@ export default function BranchEntry({
 
       {/* Entry title */}
       <text
-        x={branchX + 44}
+        x={branchX + indent + 30}
         y={entryY + 20}
         fontSize="12"
         fontWeight="600"
@@ -116,7 +142,7 @@ export default function BranchEntry({
 
       {/* Entry date */}
       <text
-        x={branchX + 44}
+        x={branchX + indent + 30}
         y={entryY + 36}
         fontSize="10"
         fill="#6b6b6b"
@@ -132,7 +158,7 @@ export default function BranchEntry({
 
       {/* Entry preview */}
       <text
-        x={branchX + 44}
+        x={branchX + indent + 30}
         y={entryY + 52}
         fontSize="11"
         fill="#8a8a8a"

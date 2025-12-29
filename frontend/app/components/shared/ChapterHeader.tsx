@@ -1,45 +1,55 @@
+// components/chapter/ChapterHeader.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronRight, ChevronDown, Edit2, Trash2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, Trash2 } from 'lucide-react';
 
 interface ChapterHeaderProps {
+  periodId?: string | number;
   x: number;
   y: number;
   title: string;
   dateRange: string;
+  startDate?: string;
+  endDate?: string;
   entryCount?: number;
   collapsed: boolean;
   onToggle: () => void;
   onUpdateName?: (newName: string) => void;
   onDelete?: () => void;
   onDotClick?: () => void;
+  onStartBranchDrag?: (periodId: string | number, x: number, y: number) => void;
   dotX?: number;
   color?: string;
   isUncategorized?: boolean;
 }
 
 export default function ChapterHeader({
+  periodId,
   x,
   y,
   title,
   dateRange,
+  startDate,
+  endDate,
   entryCount,
   collapsed,
   onToggle,
   onUpdateName,
   onDelete,
   onDotClick,
+  onStartBranchDrag,
   dotX,
   color = '#000000',
   isUncategorized = false
 }: ChapterHeaderProps) {
+  const isMainTimeline = dotX !== undefined && x < (dotX - 100);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(title);
   const [showActions, setShowActions] = useState(false);
+  const [mouseDownPos, setMouseDownPos] = useState<{x: number, y: number} | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<SVGTextElement>(null);
   const [wrappedLines, setWrappedLines] = useState<string[]>([title]);
 
-  // Maximum width before wrapping (distance from x to dotX minus some padding)
   const maxWidth = dotX ? dotX - x - 40 : 200;
 
   useEffect(() => {
@@ -53,15 +63,13 @@ export default function ChapterHeader({
     setEditedName(title);
   }, [title]);
 
-  // Text wrapping logic
   useEffect(() => {
-    if (!textRef.current || isEditingName) return;
+    if (!textRef.current || isEditingName || !title) return;
 
     const words = title.split(' ');
     const lines: string[] = [];
     let currentLine = '';
 
-    // Create a temporary text element to measure width
     const tempText = textRef.current.cloneNode(true) as SVGTextElement;
     tempText.textContent = '';
     textRef.current.parentNode?.appendChild(tempText);
@@ -119,21 +127,76 @@ export default function ChapterHeader({
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onDelete) {
-      if (confirm(`Delete chapter "${title}"?`)) {
+      const message = entryCount && entryCount > 0
+        ? `Are you sure you want to delete "${title}"?\n\nAll ${entryCount} ${entryCount === 1 ? 'entry' : 'entries'} in this chapter will be permanently deleted and cannot be recovered.`
+        : `Are you sure you want to delete "${title}"?\n\nThis action cannot be undone.`;
+      
+      if (confirm(message)) {
         onDelete();
       }
     }
   };
 
+  const handleDotMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setMouseDownPos({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleDotMouseUp = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (mouseDownPos) {
+      const distance = Math.sqrt(
+        Math.pow(e.clientX - mouseDownPos.x, 2) + 
+        Math.pow(e.clientY - mouseDownPos.y, 2)
+      );
+      
+      if (distance < 5 && onDotClick) {
+        onDotClick();
+      } else if (distance >= 5 && onStartBranchDrag && periodId !== undefined && dotX !== undefined) {
+        const sourceId = typeof periodId === 'string' ? periodId : `period-${periodId}`;
+        onStartBranchDrag(sourceId, dotX, centerY);
+      }
+    }
+    
+    setMouseDownPos(null);
+  };
+
   const lineHeight = 18;
   const totalHeight = wrappedLines.length * lineHeight;
+  const centerY = y + (totalHeight / 2) + 5;
+
+  // Format date range to show just year if same year, or range if different
+  const formatDateRange = () => {
+    if (!startDate || !endDate) return dateRange;
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const startYear = start.getFullYear();
+    const endYear = end.getFullYear();
+    
+    if (startYear === endYear) {
+      return `${startYear}`;
+    } else {
+      return `${startYear}-${endYear}`;
+    }
+  };
 
   return (
     <g
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
-      {/* Collapse/Expand chevron */}
+      <rect
+        x={isMainTimeline ? x - 30 : x}
+        y={y - 5}
+        width={isMainTimeline ? maxWidth + 70 : 270}
+        height={totalHeight + 30}
+        fill="transparent"
+        style={{ pointerEvents: 'all' }}
+      />
+      
       <rect
         x={x}
         y={y}
@@ -166,7 +229,6 @@ export default function ChapterHeader({
         }
       </g>
 
-      {/* Chapter title - editable with wrapping */}
       {isEditingName ? (
         <foreignObject
           x={x + 32}
@@ -181,7 +243,7 @@ export default function ChapterHeader({
             onChange={(e) => setEditedName(e.target.value)}
             onBlur={handleNameSubmit}
             onKeyDown={handleKeyDown}
-            maxLength={40}
+            maxLength={36}
             style={{
               width: '100%',
               fontSize: '15px',
@@ -221,54 +283,51 @@ export default function ChapterHeader({
         </text>
       )}
 
-      {/* Edit and Delete icons */}
-      {showActions && !isEditingName && onUpdateName && onDelete && !isUncategorized && (
-        <>
-          <g
-            style={{ cursor: 'pointer' }}
-            onClick={handleNameClick}
-          >
-            <circle
-              cx={x + 232}
-              cy={y + 10}
-              r="10"
-              fill="#f0f0f0"
-              stroke="#d0d0d0"
-              strokeWidth="1"
-            />
-            <Edit2
-              x={x + 227}
-              y={y + 5}
-              size={10}
-              color="#666666"
-              strokeWidth={2}
-            />
-          </g>
-
-          <g
-            style={{ cursor: 'pointer' }}
-            onClick={handleDelete}
-          >
-            <circle
-              cx={x + 252}
-              cy={y + 10}
-              r="10"
-              fill="#fee"
-              stroke="#fcc"
-              strokeWidth="1"
-            />
-            <Trash2
-              x={x + 247}
-              y={y + 5}
-              size={10}
-              color="#e11d48"
-              strokeWidth={2}
-            />
-          </g>
-        </>
+      {showActions && !isEditingName && onDelete && !isUncategorized && (
+        <g
+          style={{ cursor: 'pointer' }}
+          onClick={handleDelete}
+        >
+          {isMainTimeline ? (
+            <>
+              <circle
+                cx={x - 15}
+                cy={y + 10}
+                r="10"
+                fill="#fee"
+                stroke="#fcc"
+                strokeWidth="1"
+              />
+              <Trash2
+                x={x - 20}
+                y={y + 5}
+                size={10}
+                color="#e11d48"
+                strokeWidth={2}
+              />
+            </>
+          ) : (
+            <>
+              <circle
+                cx={x + (wrappedLines[0].length * 7) + 85}
+                cy={y + 10}
+                r="10"
+                fill="#fee"
+                stroke="#fcc"
+                strokeWidth="1"
+              />
+              <Trash2
+                x={x + (wrappedLines[0].length * 7) + 80}
+                y={y + 5}
+                size={10}
+                color="#e11d48"
+                strokeWidth={2}
+              />
+            </>
+          )}
+        </g>
       )}
 
-      {/* Date range and entry count */}
       <text
         x={x + 32}
         y={y + totalHeight + 17}
@@ -276,26 +335,53 @@ export default function ChapterHeader({
         fill="#666666"
         style={{ pointerEvents: 'none' }}
       >
-        {dateRange}
+        {formatDateRange()}
         {entryCount !== undefined && ` • ${entryCount} ${entryCount === 1 ? 'entry' : 'entries'}`}
       </text>
 
-      {/* Dot for creating entries (optional) */}
-      {dotX !== undefined && onDotClick && (
-        <circle
-          cx={dotX}
-          cy={y + (totalHeight / 2) + 5}
-          r="4"
-          fill="#d0d0d0"
-          style={{ 
-            cursor: 'pointer',
-            pointerEvents: 'all'
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDotClick();
-          }}
-        />
+      {dotX !== undefined && (onDotClick || onStartBranchDrag) && periodId !== undefined && (
+        <>
+          <circle
+            cx={dotX}
+            cy={centerY}
+            r="2.5"
+            fill="#666666"
+            opacity="0.4"
+            style={{ pointerEvents: 'none' }}
+          />
+
+          <circle
+            cx={dotX}
+            cy={centerY}
+            r="10"
+            fill="transparent"
+            style={{
+              cursor: 'grab',
+              pointerEvents: 'all'
+            }}
+            onMouseDown={handleDotMouseDown}
+            onMouseUp={handleDotMouseUp}
+            onMouseEnter={(e) => {
+              const nextSibling = e.currentTarget.nextElementSibling as SVGCircleElement | null;
+              nextSibling?.setAttribute('opacity', '1');
+            }}
+            onMouseLeave={(e) => {
+              const nextSibling = e.currentTarget.nextElementSibling as SVGCircleElement | null;
+              nextSibling?.setAttribute('opacity', '0');
+            }}
+          />
+
+          <circle
+            cx={dotX}
+            cy={centerY}
+            r="7"
+            fill="none"
+            stroke="#3b82f6"
+            strokeWidth="1.5"
+            opacity="0"
+            style={{ pointerEvents: 'none', transition: 'opacity 0.2s' }}
+          />
+        </>
       )}
     </g>
   );
