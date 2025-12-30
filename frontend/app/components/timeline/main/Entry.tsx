@@ -132,7 +132,7 @@ export default function MainEntry({
         textAnchor="end"
         style={{ pointerEvents: 'none' }}
       >
-        {entry.preview.substring(0, 36)}...
+        {(entry.preview ?? '').substring(0, 36)}...
       </text>
     </g>
   );

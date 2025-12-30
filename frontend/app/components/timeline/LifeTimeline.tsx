@@ -5,6 +5,7 @@ import { useEventActions } from '../../hooks/useEventActions';
 import { transformToTimelineData } from '../../lib/timelineTransform';
 import { calculateLayout, LAYOUT_CONSTANTS } from '../utils/layoutCalculations';
 import { chaptersAPI } from '@/lib/api';
+import { Chapter, Event } from '@/types';
 import { LifeTimelineProps, TimelineData, TimelinePeriod, TimelineEntry, TimelineBranch, DragState } from '../types/timeline.types';
 import TimelineHeader from './Header';
 import TimelineStickyHeader from './StickyHeader';
@@ -154,6 +155,7 @@ export default function LifeTimeline({
           type: 'branch_period',
           start_date: period.startDate.toISOString().split('T')[0],
           end_date: period.endDate.toISOString().split('T')[0],
+          color: branch.color,  // ADD THIS LINE
           parent_branch: branchChapter.id,
           collapsed: period.collapsed
         });
@@ -376,11 +378,11 @@ export default function LifeTimeline({
         
         // Auto-expand chapter dates if needed
         if (createEntryChapterId) {
-          const chapter = chapters.find(c => c.id === createEntryChapterId);
+          const chapter = chapters.find((c: Chapter) => c.id === createEntryChapterId);
           if (chapter) {
             const eventDate = new Date(formData.date);
             const chapterStart = new Date(chapter.start_date);
-            const chapterEnd = new Date(chapter.end_date);
+            const chapterEnd = new Date(chapter.end_date ?? new Date());
             
             let needsUpdate = false;
             let newStart = chapter.start_date;
@@ -431,11 +433,11 @@ export default function LifeTimeline({
           // Auto-expand chapter dates if date was changed
           const eventChapterId = findEntryChapter(expandedEntry);
           if (eventChapterId && formData.date) {
-            const chapter = chapters.find(c => c.id === eventChapterId);
+            const chapter = chapters.find((c: Chapter) => c.id === eventChapterId);
             if (chapter) {
               const eventDate = new Date(formData.date);
               const chapterStart = new Date(chapter.start_date);
-              const chapterEnd = new Date(chapter.end_date);
+              const chapterEnd = new Date(chapter.end_date || new Date());
               
               let needsUpdate = false;
               let newStart = chapter.start_date;
@@ -488,7 +490,7 @@ export default function LifeTimeline({
 
   const findEntryChapter = (entryId: string | number): number | undefined => {
     if (typeof entryId === 'number') {
-      const event = events.find(e => e.id === entryId);
+      const event = events.find((e: Event) => e.id === entryId);
       if (event && event.chapter) {
         return typeof event.chapter === 'number' ? event.chapter : event.chapter;
       }
@@ -704,11 +706,6 @@ export default function LifeTimeline({
     setExpandedEntry(prev => prev === entryId ? null : entryId);
   };
 
-  //const handleCreateChapterFromEmpty = () => {
-    //setIsCreatingChapterFromEmpty(true);
-  //};
-
-
   const findExpandedEntry = (): TimelineEntry | null => {
     if (isCreatingEntry || !expandedEntry) return null;
     const result = findEntryOrPeriodById(expandedEntry);
@@ -740,7 +737,7 @@ export default function LifeTimeline({
     console.log('[handleCreateEntryInChapter] Creating entry in chapter:', chapterId);
     
     // Find the chapter to get its date range
-    const chapter = chapters.find(c => c.id === chapterId);
+    const chapter = chapters.find((c: Chapter) => c.id === chapterId);
     const entryDate = chapter ? new Date(chapter.start_date) : new Date();
     
     setCreateEntryDate(entryDate);
@@ -848,7 +845,7 @@ export default function LifeTimeline({
                 onDeleteChapter={handleDeleteChapter}
                 onAddBranchEntry={handleAddBranchEntry}
                 onCreateChapter={handleCreateChapter}
-                onCreateEntryInChapter={handleCreateEntryInChapter} // ADD THIS
+                onCreateEntryInChapter={handleCreateEntryInChapter}
               />
             )}
           </div>

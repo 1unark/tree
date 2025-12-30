@@ -1,13 +1,15 @@
-// components/timeline/types/timeline.types.ts - UPDATE THIS
+// components/timeline/types/timeline.types.ts
+import { Chapter, Event } from '@/types';
+
 export interface TimelineBranch {
   id: string | number;
   name: string;
   color: string;
   x: number;
   collapsed: boolean;
-  sourceEntryId?: string | number; // ID of entry or "period-{id}" for chapter
+  sourceEntryId?: string | number;
   periods: TimelinePeriod[];
-  directEntries?: TimelineEntry[]; // Entries directly in branch without period
+  directEntries?: TimelineEntry[];
 }
 
 export interface TimelineEntry {
@@ -16,6 +18,7 @@ export interface TimelineEntry {
   date: Date;
   content: string;
   dateText: string;
+  preview: string;  // Made required to match Sidebar expectations
 }
 
 export interface TimelinePeriod {
@@ -42,4 +45,11 @@ export interface DragState {
   startY?: number;
   currentX?: number;
   currentY?: number;
+}
+
+export interface LifeTimelineProps {
+  chapters?: Chapter[];
+  events?: Event[];
+  refresh?: () => Promise<void>;
+  initialData?: TimelineData | null;
 }

@@ -1,39 +1,6 @@
 // lib/timelineTransform.ts - FIXED TO MATCH YOUR TYPES
 import { Chapter, Event } from '@/types';
-
-interface TimelineEntry {
-  id: string | number;
-  date: Date;
-  title: string;
-  preview: string;
-  content: string;
-}
-
-interface TimelinePeriod {
-  id: string | number;
-  type: string;
-  title: string;
-  dateRange: string;
-  startDate: Date;
-  endDate: Date;
-  collapsed: boolean;
-  entries: TimelineEntry[];
-}
-
-interface TimelineBranch {
-  id: number;
-  name: string;
-  x: number;
-  collapsed: boolean;
-  color: string;
-  periods: TimelinePeriod[];
-  sourceEntryId?: string | number;
-}
-
-interface TimelineData {
-  mainTimeline: TimelinePeriod[];
-  branches: TimelineBranch[];
-}
+import { TimelineEntry, TimelinePeriod, TimelineBranch, TimelineData } from '../components/types/timeline.types';
 
 // Helper function to parse dates in local timezone (fixes timezone shift issue)
 function parseLocalDate(dateString: string): Date {
@@ -42,9 +9,15 @@ function parseLocalDate(dateString: string): Date {
 }
 
 function transformEntry(event: Event): TimelineEntry {
+  const date = parseLocalDate(event.date);
   return {
     id: event.id,
-    date: parseLocalDate(event.date),
+    date: date,
+    dateText: date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    }),
     title: event.title,
     preview: event.content ? event.content.substring(0, 100).trim() + (event.content.length > 100 ? '...' : '') : '',
     content: event.content || '',
@@ -83,7 +56,6 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
     
     return {
       id: chapter.id,
-      type: 'period',
       title: chapter.title,
       dateRange: formatDateRange(startDate, endDate),
       startDate,
@@ -112,7 +84,6 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
     // Use a far future date for sorting to ensure it appears last
     mainTimeline.push({
       id: 'uncategorized',
-      type: 'period',
       title: 'Uncategorized',
       dateRange: formatDateRange(earliestDate, latestDate),
       startDate: new Date(9999, 0, 1), // Far future date for sorting purposes
@@ -136,7 +107,6 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
       
       return {
         id: period.id,
-        type: 'period',
         title: period.title,
         startDate: parseLocalDate(period.start_date),
         endDate: period.end_date ? parseLocalDate(period.end_date) : new Date(),
@@ -180,7 +150,6 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
       
       periods = [{
         id: `branch-${branch.id}-entries`,
-        type: 'period',
         title: 'Entries',
         startDate: earliestDate,
         endDate: latestDate,
@@ -192,7 +161,6 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
       // Empty branch - create a default period
       periods = [{
         id: `branch-${branch.id}-default`,
-        type: 'period',
         title: 'New Period',
         startDate: parseLocalDate(branch.start_date),
         endDate: branch.end_date ? parseLocalDate(branch.end_date) : new Date(),

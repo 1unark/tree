@@ -36,7 +36,9 @@ export default function MainTimelinePeriod({
   onCreateEntryInChapter
 }: MainTimelinePeriodProps) {
   // Check if this is the uncategorized section
-  const isUncategorized = typeof period.id !== 'number' || period.id === 'uncategorized' || period.title === 'Uncategorized';
+  const isUncategorized = 
+    (typeof period.id === 'string' && period.id === 'uncategorized') || 
+    period.title === 'Uncategorized';
 
   const handleUpdateName = (newName: string) => {
     if (onUpdateChapterName && typeof period.id === 'number') {
@@ -96,13 +98,13 @@ export default function MainTimelinePeriod({
         y={periodY - 10}
         title={period.title || 'Untitled'}
         dateRange={period.dateRange}
-        startDate={period.startDate}
-        endDate={period.endDate}
+        startDate={period.startDate?.toISOString()}
+        endDate={period.endDate?.toISOString()}
         entryCount={period.entries.length}
         collapsed={period.collapsed}
         onToggle={onTogglePeriod}
         onUpdateName={onUpdateChapterName ? handleUpdateName : undefined}
-        onUpdateDates={onUpdateChapterDates ? handleUpdateDates : undefined}
+        // Removed onUpdateDates as it is not a valid prop for ChapterHeader
         onDelete={onDeleteChapter ? handleDelete : undefined}
         onDotClick={handleDotClick}
         onStartBranchDrag={onStartBranchDrag}

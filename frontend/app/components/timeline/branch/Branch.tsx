@@ -32,6 +32,18 @@ export default function BranchEntry({
     onStartBranchDrag(entry.id, branchX, dotY);
   };
 
+  // Format date from string
+  const formattedDate = new Date(entry.date).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
+  // Get preview text
+  const previewText = entry.preview 
+    ? `${entry.preview.substring(0, 36)}...` 
+    : '';
+
   return (
     <g>
       {/* Main dot on branch line */}
@@ -149,23 +161,21 @@ export default function BranchEntry({
         fontWeight="500"
         style={{ pointerEvents: 'none' }}
       >
-        {entry.date.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        })}
+        {formattedDate}
       </text>
 
       {/* Entry preview */}
-      <text
-        x={branchX + indent + 30}
-        y={entryY + 52}
-        fontSize="11"
-        fill="#8a8a8a"
-        style={{ pointerEvents: 'none' }}
-      >
-        {entry.preview.substring(0, 36)}...
-      </text>
+      {previewText && (
+        <text
+          x={branchX + indent + 30}
+          y={entryY + 52}
+          fontSize="11"
+          fill="#8a8a8a"
+          style={{ pointerEvents: 'none' }}
+        >
+          {previewText}
+        </text>
+      )}
     </g>
   );
 }

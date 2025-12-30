@@ -13,7 +13,7 @@ export function useTimeline() {
     try {
       const [timelineResponse, eventsData] = await Promise.all([
         chaptersAPI.getTimelineData(),
-        eventsAPI.getAll(),
+        (await eventsAPI.getAll()) as { results: Event[] } | Event[], // Explicitly define the type
       ]);
       
       // Handle paginated responses
