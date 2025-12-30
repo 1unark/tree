@@ -57,8 +57,14 @@ export default function BranchTimeline({
   // Calculate all branch positions from the centralized function
   const branchPositions = calculateBranchPositions(branch, mainTimeline, positions);
   const branchSourcePos = branchPositions.get(`branch-${branch.id}-source`);
+
+  // Always use the first period's position if it exists, otherwise use source
+  const firstPeriodPos = branch.periods.length > 0 
+    ? branchPositions.get(`branch-${branch.id}-period-${branch.periods[0].id}`)
+    : null;
+
   const branchStartY = branchSourcePos?.dotY || LAYOUT_CONSTANTS.startY;
-  
+
   useEffect(() => {
     if (isEditingName && inputRef.current) {
       inputRef.current.focus();

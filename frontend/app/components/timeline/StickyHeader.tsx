@@ -9,7 +9,7 @@ export default function TimelineStickyHeader({ period }: TimelineStickyHeaderPro
   return (
     <div style={{
       position: 'absolute',
-      top: '56px', // Position right below main header
+      top: '56px',
       left: '0',
       right: '0',
       height: '62px',
@@ -21,7 +21,7 @@ export default function TimelineStickyHeader({ period }: TimelineStickyHeaderPro
       padding: '0 40px 0 90px',
       zIndex: 90,
       boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-      transition: 'opacity 0.2s ease', // Smooth fade in
+      opacity: 1, // Always visible
     }}>
       <div style={{
         width: '8px',

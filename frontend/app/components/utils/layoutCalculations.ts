@@ -58,6 +58,7 @@ export function calculateLayout(
     positions.set(`period-${period.id}-dot`, currentY + LAYOUT_CONSTANTS.periodDotOffset);
     currentY += LAYOUT_CONSTANTS.periodHeaderHeight;
 
+    // Only process entries if period is NOT collapsed
     if (!period.collapsed && period.entries && period.entries.length > 0) {
       // Has entries - process them
       period.entries.forEach((entry, entryIndex) => {
@@ -76,7 +77,7 @@ export function calculateLayout(
         currentY += LAYOUT_CONSTANTS.mainTimelineEntryToChapterGap;
       }
     } else {
-      // No entries - just add chapter-to-chapter gap
+      // No entries OR collapsed - just add chapter-to-chapter gap
       if (periodIndex < mainTimeline.length - 1) {
         currentY += LAYOUT_CONSTANTS.mainTimelineChapterToChapterGap;
       }
@@ -108,19 +109,23 @@ export function calculateBranchPositions(
         branchSourceY = dotY;
       }
     } else {
+      // It's an entry - find it in the main timeline
       const dotY = positions.get(`entry-${branch.sourceEntryId}-dot`);
       if (dotY !== undefined) {
         branchSourceY = dotY;
+      } else {
+        // Entry not found (probably collapsed) - find its parent chapter
+        for (const mainPeriod of mainTimeline) {
+          const entry = mainPeriod.entries.find(e => e.id === branch.sourceEntryId);
+          if (entry) {
+            const chapterDotY = positions.get(`period-${mainPeriod.id}-dot`);
+            if (chapterDotY !== undefined) {
+              branchSourceY = chapterDotY;
+              break;
+            }
+          }
+        }
       }
-    }
-  } else if (branch.periods && branch.periods.length > 0) {
-    const firstPeriod = branch.periods[0];
-    const matchingMainPeriod = mainTimeline.find(p => 
-      p.startDate <= firstPeriod.startDate && 
-      (!p.endDate || p.endDate >= firstPeriod.startDate)
-    );
-    if (matchingMainPeriod) {
-      branchSourceY = positions.get(`period-${matchingMainPeriod.id}-dot`) ?? branchSourceY;
     }
   }
 
@@ -129,14 +134,50 @@ export function calculateBranchPositions(
     dotY: branchSourceY
   });
 
-  let currentY = branchSourceY;
-
   if (!branch.periods || branch.periods.length === 0) {
     return branchPositions;
   }
 
-  branch.periods.forEach((period, periodIndex) => {
-    // Store period position
+  // ALWAYS calculate first period at source position
+  const firstPeriod = branch.periods[0];
+  branchPositions.set(`branch-${branch.id}-period-${firstPeriod.id}`, {
+    y: branchSourceY,
+    dotY: branchSourceY + LAYOUT_CONSTANTS.periodDotOffset
+  });
+
+  // If collapsed, stop here
+  if (branch.collapsed) {
+    return branchPositions;
+  }
+
+  // Branch is expanded - calculate remaining positions
+  let currentY = branchSourceY + LAYOUT_CONSTANTS.periodHeaderHeight;
+
+  // Calculate first period's entries
+  if (!firstPeriod.collapsed && firstPeriod.entries && firstPeriod.entries.length > 0) {
+    firstPeriod.entries.forEach((entry, entryIndex) => {
+      branchPositions.set(`branch-${branch.id}-entry-${entry.id}`, {
+        y: currentY,
+        dotY: currentY + LAYOUT_CONSTANTS.entryDotOffset
+      });
+      currentY += LAYOUT_CONSTANTS.entryCardHeight;
+      
+      if (entryIndex < firstPeriod.entries.length - 1) {
+        currentY += LAYOUT_CONSTANTS.branchEntrySpacing;
+      }
+    });
+    
+    if (branch.periods.length > 1) {
+      currentY += LAYOUT_CONSTANTS.branchEntryToChapterGap;
+    }
+  } else if (branch.periods.length > 1) {
+    currentY += LAYOUT_CONSTANTS.branchChapterToChapterGap;
+  }
+
+  // Calculate remaining periods
+  for (let i = 1; i < branch.periods.length; i++) {
+    const period = branch.periods[i];
+    
     branchPositions.set(`branch-${branch.id}-period-${period.id}`, {
       y: currentY,
       dotY: currentY + LAYOUT_CONSTANTS.periodDotOffset
@@ -145,7 +186,6 @@ export function calculateBranchPositions(
     currentY += LAYOUT_CONSTANTS.periodHeaderHeight;
 
     if (!period.collapsed && period.entries && period.entries.length > 0) {
-      // Has entries - process them
       period.entries.forEach((entry, entryIndex) => {
         branchPositions.set(`branch-${branch.id}-entry-${entry.id}`, {
           y: currentY,
@@ -153,27 +193,21 @@ export function calculateBranchPositions(
         });
         currentY += LAYOUT_CONSTANTS.entryCardHeight;
         
-        // Add spacing between entries (but not after the last entry)
         if (entryIndex < period.entries.length - 1) {
           currentY += LAYOUT_CONSTANTS.branchEntrySpacing;
         }
       });
       
-      // Add gap between last entry and next chapter
-      if (periodIndex < branch.periods.length - 1) {
+      if (i < branch.periods.length - 1) {
         currentY += LAYOUT_CONSTANTS.branchEntryToChapterGap;
       }
-    } else {
-      // No entries - just add chapter-to-chapter gap
-      if (periodIndex < branch.periods.length - 1) {
-        currentY += LAYOUT_CONSTANTS.branchChapterToChapterGap;
-      }
+    } else if (i < branch.periods.length - 1) {
+      currentY += LAYOUT_CONSTANTS.branchChapterToChapterGap;
     }
-  });
+  }
 
   return branchPositions;
 }
-
 export function calculatePlusButtonY(positions: Map<string, number>): number {
   const allPositions = Array.from(positions.values());
   const lastContentY = allPositions.length > 0 ? Math.max(...allPositions) : 0;

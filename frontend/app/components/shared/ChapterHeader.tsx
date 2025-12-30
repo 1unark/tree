@@ -1,6 +1,6 @@
 // components/chapter/ChapterHeader.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronRight, ChevronDown, Trash2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, Trash2, Plus } from 'lucide-react';
 
 interface ChapterHeaderProps {
   periodId?: string | number;
@@ -17,6 +17,7 @@ interface ChapterHeaderProps {
   onDelete?: () => void;
   onDotClick?: () => void;
   onStartBranchDrag?: (periodId: string | number, x: number, y: number) => void;
+  onAddEntry?: () => void;
   dotX?: number;
   color?: string;
   isUncategorized?: boolean;
@@ -37,6 +38,7 @@ export default function ChapterHeader({
   onDelete,
   onDotClick,
   onStartBranchDrag,
+  onAddEntry,
   dotX,
   color = '#000000',
   isUncategorized = false
@@ -137,6 +139,13 @@ export default function ChapterHeader({
     }
   };
 
+  const handleAddEntry = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onAddEntry) {
+      onAddEntry();
+    }
+  };
+
   const handleDotMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -228,6 +237,26 @@ export default function ChapterHeader({
           />
         }
       </g>
+
+      {/* Plus icon - always visible when onAddEntry exists and not uncategorized */}
+      {onAddEntry && !isUncategorized && (
+        <g style={{ cursor: 'pointer' }} onClick={handleAddEntry}>
+          <rect
+            x={x}
+            y={y + 20}
+            width={24}
+            height={24}
+            fill="transparent"
+          />
+          <Plus 
+            x={x + 4} 
+            y={y + 22} 
+            size={16} 
+            color="#666666" 
+            strokeWidth={2.5}
+          />
+        </g>
+      )}
 
       {isEditingName ? (
         <foreignObject

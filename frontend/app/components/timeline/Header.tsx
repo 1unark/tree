@@ -4,8 +4,28 @@ import { TimelineBranch } from '../types/timeline.types';
 interface TimelineHeaderProps {
   branches: TimelineBranch[];
 }
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function TimelineHeader({ branches }: TimelineHeaderProps) {
+  const handleLogout = async () => {
+    try {
+      const response = await fetch(`${API_URL}/users/logout/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Redirect to login page or home page
+        window.location.href = '/login';
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
   return (
     <div style={{
       height: '56px',
@@ -19,7 +39,7 @@ export default function TimelineHeader({ branches }: TimelineHeaderProps) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
         <h1 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111' }}>
-          skibidi
+          Timeline
         </h1>
         
         <div style={{ 
@@ -53,9 +73,21 @@ export default function TimelineHeader({ branches }: TimelineHeaderProps) {
         </div>
       </div>
       
-      <div style={{ fontSize: '12px', color: '#6b6b6b' }}>
-        User
-      </div>
+      <button
+        onClick={handleLogout}
+        style={{
+          fontSize: '12px',
+          color: '#6b6b6b',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '4px 8px',
+        }}
+        onMouseOver={(e) => e.currentTarget.style.color = '#111'}
+        onMouseOut={(e) => e.currentTarget.style.color = '#6b6b6b'}
+      >
+        Log out
+      </button>
     </div>
   );
 }

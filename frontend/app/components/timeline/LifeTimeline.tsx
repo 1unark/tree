@@ -37,7 +37,9 @@ export default function LifeTimeline({
   const [data, setData] = useState<TimelineData>(transformedData);
   const [dragState, setDragState] = useState<DragState>({ type: null });
   const [expandedEntry, setExpandedEntry] = useState<string | number | null>(null);
-  const [stickyPeriod, setStickyPeriod] = useState<TimelinePeriod | null>(null);
+  const [stickyPeriod, setStickyPeriod] = React.useState<TimelinePeriod | null>(
+    data.mainTimeline[0] || null
+  );  
   const [isCreatingEntry, setIsCreatingEntry] = useState(false);
   const [createEntryDate, setCreateEntryDate] = useState<Date | undefined>(undefined);
   const [createEntryChapterId, setCreateEntryChapterId] = useState<number | undefined>(undefined);
@@ -585,12 +587,25 @@ export default function LifeTimeline({
       if (!scrollContainerRef.current) return;
       
       const scrollTop = scrollContainerRef.current.scrollTop;
-      let currentPeriod = null;
+      const PADDING_TOP = 180; // Your container's paddingTop
       
-      for (const period of data.mainTimeline) {
+      let currentPeriod = data.mainTimeline[0] || null;
+      
+      // Find which period header has most recently passed under the sticky header
+      for (let i = 0; i < data.mainTimeline.length; i++) {
+        const period = data.mainTimeline[i];
         const periodY = positions.get(`period-${period.id}`);
-        if (periodY && scrollTop + 64 >= periodY - 20) {
-          currentPeriod = period;
+        
+        if (periodY !== undefined) {
+          // Period Y positions are relative to content start
+          // Add PADDING_TOP to get actual rendered position
+          const actualPeriodY = periodY + PADDING_TOP;
+          
+          // Sticky header is 118px from top of viewport
+          // Switch when period header passes under sticky header
+          if (scrollTop >= actualPeriodY - 118) {
+            currentPeriod = period;
+          }
         }
       }
       
@@ -599,10 +614,12 @@ export default function LifeTimeline({
 
     const container = scrollContainerRef.current;
     if (container) {
+      handleScroll();
       container.addEventListener('scroll', handleScroll);
       return () => container.removeEventListener('scroll', handleScroll);
     }
   }, [data.mainTimeline, positions]);
+
 
   const toggleMainPeriod = (periodId: string | number) => {
     setData(prev => {
@@ -611,26 +628,38 @@ export default function LifeTimeline({
       
       const newCollapsed = !period.collapsed;
       
+      // Get all entry IDs within this period
+      const entryIdsInPeriod = period.entries.map(e => e.id);
+      
       return {
         ...prev,
         mainTimeline: prev.mainTimeline.map(p => 
           p.id === periodId ? { ...p, collapsed: newCollapsed } : p
         ),
-        branches: prev.branches.map(branch => ({
-          ...branch,
-          periods: branch.periods.map(branchPeriod => {
-            const periodInRange = branchPeriod.startDate >= period.startDate && 
-                                 branchPeriod.startDate <= period.endDate;
-            
-            if (periodInRange) {
-              return { ...branchPeriod, collapsed: newCollapsed };
-            }
-            return branchPeriod;
-          })
-        }))
+        branches: prev.branches.map(branch => {
+          // Check if branch originates from this period or any entry in it
+          let originatesFromPeriod = false;
+          
+          if (typeof branch.sourceEntryId === 'string' && branch.sourceEntryId.startsWith('period-')) {
+            const sourcePeriodId = branch.sourceEntryId.replace('period-', '');
+            originatesFromPeriod = String(sourcePeriodId) === String(periodId);
+          } else {
+            originatesFromPeriod = branch.sourceEntryId !== undefined && entryIdsInPeriod.includes(branch.sourceEntryId);
+          }
+          
+          if (originatesFromPeriod) {
+            return {
+              ...branch,
+              collapsed: newCollapsed
+            };
+          }
+          
+          return branch;
+        })
       };
     });
   };
+
 
   const toggleBranchPeriod = (branchId: string | number, periodId: string | number) => {
     setData(prev => ({
@@ -812,7 +841,7 @@ export default function LifeTimeline({
               flex: 1, 
               overflowY: 'auto',
               overflowX: 'hidden',
-              paddingTop: '506px',
+              paddingTop: '180px',
               height: '100%',
               width: '100%'
             }}>

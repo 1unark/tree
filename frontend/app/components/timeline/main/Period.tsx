@@ -64,6 +64,12 @@ export default function MainTimelinePeriod({
     }
   };
 
+  const handleAddEntry = () => {
+    if (typeof period.id === 'number' && onCreateEntryInChapter) {
+      onCreateEntryInChapter(period.id);
+    }
+  };
+
   // If uncategorized, render entries only without chapter header
   if (isUncategorized) {
     return (
@@ -104,9 +110,9 @@ export default function MainTimelinePeriod({
         collapsed={period.collapsed}
         onToggle={onTogglePeriod}
         onUpdateName={onUpdateChapterName ? handleUpdateName : undefined}
-        // Removed onUpdateDates as it is not a valid prop for ChapterHeader
         onDelete={onDeleteChapter ? handleDelete : undefined}
         onDotClick={handleDotClick}
+        onAddEntry={onCreateEntryInChapter ? handleAddEntry : undefined}
         onStartBranchDrag={onStartBranchDrag}
         dotX={spineX}
         color="#000000"
