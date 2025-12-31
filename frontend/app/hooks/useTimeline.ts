@@ -29,7 +29,7 @@ export function useTimeline() {
       ];
       
       setChapters(allChapters.sort((a, b) => 
-        new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+        new Date(a.start_date).getTime() - new Date(b.start_date).getTime()  // Changed b - a to a - b
       ));
       setEvents(eventsArray);
     } catch (err) {
