@@ -238,7 +238,7 @@ export default function ChapterHeader({
         }
       </g>
 
-      {/* Plus icon - always visible when onAddEntry exists and not uncategorized */}
+      {/* Plus icon - visible for all chapters when onAddEntry exists and not uncategorized */}
       {onAddEntry && !isUncategorized && (
         <g style={{ cursor: 'pointer' }} onClick={handleAddEntry}>
           <rect

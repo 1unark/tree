@@ -63,3 +63,11 @@ def logout(request):
     else:
         # Even if not authenticated, return success (idempotent operation)
         return Response({'message': 'Already logged out'}, status=status.HTTP_200_OK)
+    
+from django.http import JsonResponse
+
+def check_auth(request):
+    """
+    Returns JSON indicating if the user is logged in.
+    """
+    return JsonResponse({'authenticated': request.user.is_authenticated})

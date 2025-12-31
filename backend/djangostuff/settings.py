@@ -14,7 +14,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()  # take environment variables from .env file
 import os
-
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SAMESITE = None
+CSRF_COOKIE_SAMESITE = None
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,7 +42,6 @@ CORS_ALLOWED_ORIGINS = [
     "https://tree-cv9jma.fly.dev",
 ]
 
-CORS_ALLOW_CREDENTIALS = True
 
 # REST Framework settings
 REST_FRAMEWORK = {
@@ -102,7 +104,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'djangostuff.wsgi.application'
 
-
+CORS_ALLOW_CREDENTIALS = True
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 

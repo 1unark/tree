@@ -1,24 +1,50 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LifeTimeline from '../components/timeline/LifeTimeline';
 import { useTimeline } from '@/hooks/useTimeline';
 
 export default function TimelineContainer() {
-  const router = useRouter();
   const { chapters, events, loading, refresh } = useTimeline();
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check if user is authenticated via Django REST token
-    const token = localStorage.getItem('auth-token') || sessionStorage.getItem('auth-token');
-    
-    if (!token) {
-      router.push('/login');
+    let mounted = true;
+
+    async function checkLogin() {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/check-auth/`, {
+          credentials: 'include',
+        });
+
+        const data = await res.json();
+        console.log('Auth status:', data.authenticated);
+
+        if (!mounted) return;
+
+        // Only redirect if explicitly false
+        if (data.authenticated === false) {
+          router.push('/login');
+        } else {
+          setIsAuthenticated(true);
+        }
+      } catch (err) {
+        console.error('Failed to check auth:', err);
+        if (mounted) router.push('/login');
+      }
     }
+
+    checkLogin();
+
+    return () => {
+      mounted = false;
+    };
   }, [router]);
 
-  if (loading) {
+  // Wait until both timeline and auth status are loaded
+  if (loading || isAuthenticated === null) {
     return (
       <div style={{
         display: 'flex',
