@@ -9,20 +9,24 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export default function TimelineHeader({ branches }: TimelineHeaderProps) {
   const handleLogout = async () => {
     try {
+      const token = localStorage.getItem('token');
+      
       const response = await fetch(`${API_URL}/users/logout/`, {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Token ${token}` : '',
         },
       });
 
-      if (response.ok) {
-        // Redirect to login page or home page
-        window.location.href = '/login';
-      }
+      // Always clear token and redirect, even if request fails
+      localStorage.removeItem('token');
+      window.location.href = '/auth';
     } catch (error) {
       console.error('Logout failed:', error);
+      // Still clear token and redirect on error
+      localStorage.removeItem('token');
+      window.location.href = '/auth';
     }
   };
 

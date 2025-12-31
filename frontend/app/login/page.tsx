@@ -1,7 +1,7 @@
 // app/auth/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function AuthPage() {
@@ -11,6 +11,31 @@ export default function AuthPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Verify token is valid
+      fetch(`${API_URL}/users/check-auth/`, {
+        headers: {
+          'Authorization': `Token ${token}`,
+        },
+      })
+        .then(response => {
+          if (response.ok) {
+            window.location.href = '/timeline';
+          } else {
+            // Invalid token, remove it
+            localStorage.removeItem('token');
+          }
+        })
+        .catch(() => {
+          // Network error, just remove token
+          localStorage.removeItem('token');
+        });
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +93,10 @@ export default function AuthPage() {
         <div className="flex gap-6 mb-8 border-b">
           <button
             type="button"
-            onClick={() => setIsLogin(true)}
+            onClick={() => {
+              setIsLogin(true);
+              setError('');
+            }}
             className={`pb-3 text-sm font-medium transition-colors relative ${
               isLogin ? 'text-gray-900' : 'text-gray-500'
             }`}
@@ -80,7 +108,10 @@ export default function AuthPage() {
           </button>
           <button
             type="button"
-            onClick={() => setIsLogin(false)}
+            onClick={() => {
+              setIsLogin(false);
+              setError('');
+            }}
             className={`pb-3 text-sm font-medium transition-colors relative ${
               !isLogin ? 'text-gray-900' : 'text-gray-500'
             }`}
@@ -154,11 +185,6 @@ export default function AuthPage() {
             {loading ? 'Loading...' : 'Continue'}
           </button>
         </form>
-
-        {!isLogin && (
-          <p className="text-xs text-gray-500 text-center mt-8">
-          </p>
-        )}
       </div>
     </div>
   );

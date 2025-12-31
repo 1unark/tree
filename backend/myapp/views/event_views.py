@@ -10,47 +10,34 @@ User = get_user_model()
 
 class ChapterViewSet(viewsets.ModelViewSet):
     serializer_class = ChapterSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]  # Changed from AllowAny
 
     def get_queryset(self):
-        user, _ = User.objects.get_or_create(
-            username='default',
-            defaults={'email': 'default@example.com'}
-        )
-        return Chapter.objects.filter(user=user).select_related(
+        # Remove the get_or_create, use the actual authenticated user
+        return Chapter.objects.filter(user=self.request.user).select_related(
             'parent_branch', 'source_entry', 'source_chapter'
         ).prefetch_related('entries', 'periods', 'branch_entries')
 
     def perform_create(self, serializer):
-        user, _ = User.objects.get_or_create(
-            username='default',
-            defaults={'email': 'default@example.com'}
-        )
-        serializer.save(user=user)
+        # Remove the get_or_create, use the actual authenticated user
+        serializer.save(user=self.request.user)
 
     def perform_destroy(self, instance):
-        # Delete all child periods first if this is a branch
         if instance.type == 'branch':
             instance.periods.all().delete()
         instance.delete()
 
     @action(detail=False, methods=['get'])
     def timeline_data(self, request):
-        user, _ = User.objects.get_or_create(
-            username='default',
-            defaults={'email': 'default@example.com'}
-        )
-        
-        # Get main timeline periods
+        # Remove the get_or_create, use the actual authenticated user
         main_periods = Chapter.objects.filter(
-            user=user,
+            user=request.user,  # Changed
             type='main_period',
             parent_branch__isnull=True
         ).prefetch_related('entries').order_by('order', 'start_date')
         
-        # Get branches with their periods and entries
         branches = Chapter.objects.filter(
-            user=user,
+            user=request.user,  # Changed
             type='branch',
             parent_branch__isnull=True
         ).prefetch_related(
@@ -66,23 +53,16 @@ class ChapterViewSet(viewsets.ModelViewSet):
 
 class EventViewSet(viewsets.ModelViewSet):
     serializer_class = EventSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]  # Changed from AllowAny
 
     def get_queryset(self):
-        user, _ = User.objects.get_or_create(
-            username='default',
-            defaults={'email': 'default@example.com'}
-        )
-        return Event.objects.filter(user=user).select_related('chapter', 'branch')
+        # Remove the get_or_create, use the actual authenticated user
+        return Event.objects.filter(user=self.request.user).select_related('chapter', 'branch')
 
     def perform_create(self, serializer):
-        user, _ = User.objects.get_or_create(
-            username='default',
-            defaults={'email': 'default@example.com'}
-        )
-        serializer.save(user=user)
+        # Remove the get_or_create, use the actual authenticated user
+        serializer.save(user=self.request.user)
 
     def perform_destroy(self, instance):
-        # Also delete any branches that were spawned from this entry
         instance.spawned_branches.all().delete()
         instance.delete()

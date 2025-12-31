@@ -4,18 +4,33 @@ import { Chapter, Event, ChapterFormData, EventFormData } from '@/types';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function fetchAPI(endpoint: string, options?: RequestInit) {
+  const token = localStorage.getItem('token');
   
+  if (!token) {
+    // No token, redirect to auth page
+    window.location.href = '/auth';
+    throw new Error('Not authenticated');
+  }
+
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Token ${token}`,
       ...options?.headers,
     },
   });
 
+  if (response.status === 401) {
+    // Token invalid or expired
+    localStorage.removeItem('token');
+    window.location.href = '/auth';
+    throw new Error('Authentication failed');
+  }
+
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`[ ERROR] ${endpoint}:`, errorText);
+    console.error(`[API ERROR] ${endpoint}:`, errorText);
     throw new Error(`API error: ${response.statusText}`);
   }
 
