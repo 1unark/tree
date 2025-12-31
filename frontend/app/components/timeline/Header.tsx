@@ -21,12 +21,12 @@ export default function TimelineHeader({ branches }: TimelineHeaderProps) {
 
       // Always clear token and redirect, even if request fails
       localStorage.removeItem('token');
-      window.location.href = '/auth';
+      window.location.href = '/login';
     } catch (error) {
       console.error('Logout failed:', error);
       // Still clear token and redirect on error
       localStorage.removeItem('token');
-      window.location.href = '/auth';
+      window.location.href = '/login';
     }
   };
 
