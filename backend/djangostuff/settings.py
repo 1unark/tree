@@ -27,6 +27,12 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://tree-drab.vercel.app',
+    'https://tree-cv9jma.fly.dev',
+    'https://tree-backend-5u7d.onrender.com',
+]
+
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
