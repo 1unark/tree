@@ -47,7 +47,6 @@ export default function ChapterHeader({
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(title);
   const [showActions, setShowActions] = useState(false);
-  const [mouseDownPos, setMouseDownPos] = useState<{x: number, y: number} | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<SVGTextElement>(null);
   const [wrappedLines, setWrappedLines] = useState<string[]>([title]);
@@ -149,27 +148,11 @@ export default function ChapterHeader({
   const handleDotMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    setMouseDownPos({ x: e.clientX, y: e.clientY });
-  };
-
-  const handleDotMouseUp = (e: React.MouseEvent) => {
-    e.stopPropagation();
     
-    if (mouseDownPos) {
-      const distance = Math.sqrt(
-        Math.pow(e.clientX - mouseDownPos.x, 2) + 
-        Math.pow(e.clientY - mouseDownPos.y, 2)
-      );
-      
-      if (distance < 5 && onDotClick) {
-        onDotClick();
-      } else if (distance >= 5 && onStartBranchDrag && periodId !== undefined && dotX !== undefined) {
-        const sourceId = typeof periodId === 'string' ? periodId : `period-${periodId}`;
-        onStartBranchDrag(sourceId, dotX, centerY);
-      }
+    if (onStartBranchDrag && periodId !== undefined && dotX !== undefined) {
+      const sourceId = typeof periodId === 'string' ? periodId : `period-${periodId}`;
+      onStartBranchDrag(sourceId, dotX, centerY);
     }
-    
-    setMouseDownPos(null);
   };
 
   const lineHeight = 18;
@@ -368,7 +351,7 @@ export default function ChapterHeader({
         {entryCount !== undefined && ` • ${entryCount} ${entryCount === 1 ? 'entry' : 'entries'}`}
       </text>
 
-      {dotX !== undefined && (onDotClick || onStartBranchDrag) && periodId !== undefined && (
+      {dotX !== undefined && onStartBranchDrag && periodId !== undefined && (
         <>
           <circle
             cx={dotX}
@@ -389,7 +372,6 @@ export default function ChapterHeader({
               pointerEvents: 'all'
             }}
             onMouseDown={handleDotMouseDown}
-            onMouseUp={handleDotMouseUp}
             onMouseEnter={(e) => {
               const nextSibling = e.currentTarget.nextElementSibling as SVGCircleElement | null;
               nextSibling?.setAttribute('opacity', '1');

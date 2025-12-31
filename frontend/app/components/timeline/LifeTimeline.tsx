@@ -511,21 +511,18 @@ export default function LifeTimeline({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top + scrollTop - paddingOffset;
     
-    console.log('[handleTimelineClick] Click position:', { x, y, spineX: LAYOUT_CONSTANTS.spineX });
     
     // Only create entry if clicking near the spine
     if (Math.abs(x - LAYOUT_CONSTANTS.spineX) < 100) {
       let clickedDate: Date | undefined;
       let clickedChapterId: number | undefined;
       
-      console.log('[handleTimelineClick] Near spine, checking periods...');
       
       // Find which period was clicked - use actual positions, not recalculated heights
       for (let i = 0; i < data.mainTimeline.length; i++) {
         const period = data.mainTimeline[i];
         const periodY = positions.get(`period-${period.id}`);
         
-        console.log(`[handleTimelineClick] Checking period ${period.id} (${period.title}) at Y=${periodY}`);
         
         if (periodY !== undefined) {
           // Get the next period's Y position to know where this period ends
@@ -533,7 +530,6 @@ export default function LifeTimeline({
             ? positions.get(`period-${data.mainTimeline[i + 1].id}`)
             : totalHeight;
           
-          console.log(`[handleTimelineClick] Period range: ${periodY - 20} to ${nextPeriodY}`);
           
           // Check if click is within this period's range
           if (y >= periodY - 20 && y < (nextPeriodY ?? totalHeight)) {
@@ -561,11 +557,7 @@ export default function LifeTimeline({
         }
       }
       
-      console.log('[handleTimelineClick] Final values:', {
-        clickedDate,
-        clickedChapterId
-      });
-      
+
       setCreateEntryDate(clickedDate || new Date());
       setCreateEntryChapterId(clickedChapterId);
       setCreateEntryBranchId(undefined);
@@ -763,7 +755,6 @@ export default function LifeTimeline({
   };
 
   const handleCreateEntryInChapter = (chapterId: number) => {
-    console.log('[handleCreateEntryInChapter] Creating entry in chapter:', chapterId);
     
     // Find the chapter to get its date range
     const chapter = chapters.find((c: Chapter) => c.id === chapterId);
