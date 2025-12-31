@@ -27,9 +27,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY_DJANGO')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1','tree-drab.vercel.app','https://tree-cv9jma.fly.dev']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'tree-drab.vercel.app', 'tree-cv9jma.fly.dev']
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
