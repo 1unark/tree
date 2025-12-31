@@ -1,4 +1,4 @@
-// lib/timelineTransform.ts - FIXED TO MATCH YOUR TYPES
+// lib/timelineTransform.ts - FIXED CHRONOLOGICAL SORTING
 import { Chapter, Event } from '@/types';
 import { TimelineEntry, TimelinePeriod, TimelineBranch, TimelineData } from '../components/types/timeline.types';
 
@@ -50,9 +50,23 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
     const chapterEvents = events.filter(e => e.chapter === chapter.id);
     
     const entries: TimelineEntry[] = chapterEvents.map(event => transformEntry(event));
+    
+    // Sort entries chronologically
+    const sortedEntries = entries.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    const startDate = parseLocalDate(chapter.start_date);
-    const endDate = chapter.end_date ? parseLocalDate(chapter.end_date) : new Date();
+    // Calculate chapter dates from entries (earliest to latest)
+    let startDate: Date;
+    let endDate: Date;
+
+    if (sortedEntries.length > 0) {
+      // Use entry dates if entries exist
+      startDate = sortedEntries[0].date;
+      endDate = sortedEntries[sortedEntries.length - 1].date;
+    } else {
+      // Fallback to stored chapter dates if no entries
+      startDate = parseLocalDate(chapter.start_date);
+      endDate = chapter.end_date ? parseLocalDate(chapter.end_date) : startDate;
+    }
     
     return {
       id: chapter.id,
@@ -61,11 +75,11 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
       startDate,
       endDate,
       collapsed: chapter.collapsed || false,
-      entries: entries.sort((a, b) => a.date.getTime() - b.date.getTime()),
+      entries: sortedEntries,
     };
   });
 
-  // Sort chapters chronologically by start date (day-level precision)
+  // Sort chapters chronologically by their START DATE (earliest first)
   mainTimeline.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
   // Handle uncategorized events - add AFTER sorting
@@ -105,21 +119,33 @@ export function transformToTimelineData(chapters: Chapter[], events: Event[]): T
       const periodEvents = events.filter(e => e.chapter === period.id);
       const periodEntries = periodEvents.map(e => transformEntry(e));
       
+      // Sort entries chronologically
+      const sortedEntries = periodEntries.sort((a, b) => a.date.getTime() - b.date.getTime());
+      
+      // Calculate period dates from entries
+      let startDate: Date;
+      let endDate: Date;
+      
+      if (sortedEntries.length > 0) {
+        startDate = sortedEntries[0].date;
+        endDate = sortedEntries[sortedEntries.length - 1].date;
+      } else {
+        startDate = parseLocalDate(period.start_date);
+        endDate = period.end_date ? parseLocalDate(period.end_date) : startDate;
+      }
+      
       return {
         id: period.id,
         title: period.title,
-        startDate: parseLocalDate(period.start_date),
-        endDate: period.end_date ? parseLocalDate(period.end_date) : new Date(),
-        dateRange: formatDateRange(
-          parseLocalDate(period.start_date), 
-          period.end_date ? parseLocalDate(period.end_date) : new Date()
-        ),
+        startDate,
+        endDate,
+        dateRange: formatDateRange(startDate, endDate),
         collapsed: period.collapsed || false,
-        entries: periodEntries.sort((a, b) => a.date.getTime() - b.date.getTime())
+        entries: sortedEntries
       };
     });
     
-    // Sort branch periods chronologically by start date (day-level precision)
+    // Sort branch periods chronologically by start date (earliest first)
     branchPeriods.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
     
     // Get events directly assigned to the branch (chapter points to the branch itself)
