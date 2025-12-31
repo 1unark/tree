@@ -35,7 +35,7 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'tree-drab.vercel.app', 'tree-cv9jma.
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "tree-drab.vercel.app",
+    "https://tree-drab.vercel.app",
     "https://tree-cv9jma.fly.dev",
 ]
 
