@@ -21,7 +21,7 @@ export const LAYOUT_CONSTANTS = {
   mainTimelineEntryToChapterGap: 30,
   
   // Space between chapters (when chapter has no entries)
-  mainTimelineChapterToChapterGap: 20,
+  mainTimelineChapterToChapterGap: 30,
   
   // ========================================
   // BRANCH SPACING CONTROLS

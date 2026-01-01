@@ -26,6 +26,7 @@ interface BranchTimelineProps {
   onUpdateChapterDates?: (chapterId: number, startDate: string, endDate: string) => void;
   onDeleteChapter?: (chapterId: number) => void;
   onCreateChapter?: (chapterData: any) => Promise<void>;
+  onAddEntry?: (chapterId: number) => void;
 }
 
 export default function BranchTimeline({
@@ -46,7 +47,8 @@ export default function BranchTimeline({
   onUpdateChapterName,
   onUpdateChapterDates,
   onDeleteChapter,
-  onCreateChapter
+  onCreateChapter,
+  onAddEntry
 }: BranchTimelineProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(branch.name);
@@ -378,6 +380,7 @@ export default function BranchTimeline({
             onUpdateChapterName={onUpdateChapterName}
             onUpdateChapterDates={onUpdateChapterDates}
             onDeleteChapter={onDeleteChapter}
+            onAddEntry={onAddEntry}
           />
         );
       })}

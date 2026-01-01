@@ -18,6 +18,7 @@ interface BranchPeriodProps {
   onUpdateChapterName?: (chapterId: number, newName: string) => void;
   onUpdateChapterDates?: (chapterId: number, startDate: string, endDate: string) => void;
   onDeleteChapter?: (chapterId: number) => void;
+  onAddEntry?: (chapterId: number) => void;
 }
 
 export default function BranchPeriod({
@@ -32,7 +33,8 @@ export default function BranchPeriod({
   onStartBranchDrag,
   onUpdateChapterName,
   onUpdateChapterDates,
-  onDeleteChapter
+  onDeleteChapter,
+  onAddEntry
 }: BranchPeriodProps) {
   // USE THE CENTRALIZED CALCULATION FUNCTION
   const branchPositions = calculateBranchPositions(branch, mainTimeline, positions);
@@ -56,6 +58,12 @@ export default function BranchPeriod({
   const handleDelete = () => {
     if (onDeleteChapter && typeof period.id === 'number') {
       onDeleteChapter(period.id);
+    }
+  };
+
+  const handleAddEntry = () => {
+    if (onAddEntry && typeof period.id === 'number') {
+      onAddEntry(period.id);
     }
   };
 
@@ -84,6 +92,7 @@ export default function BranchPeriod({
         onToggle={onTogglePeriod}
         onUpdateName={onUpdateChapterName ? handleUpdateName : undefined}
         onDelete={onDeleteChapter ? handleDelete : undefined}
+        onAddEntry={onAddEntry ? handleAddEntry : undefined}
         color="#000000"
         periodId={period.id}
         onStartBranchDrag={onStartBranchDrag} 
