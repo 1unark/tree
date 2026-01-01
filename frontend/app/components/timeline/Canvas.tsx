@@ -31,7 +31,8 @@ interface TimelineCanvasProps {
   onDeleteChapter?: (chapterId: number) => void;
   onAddBranchEntry?: (branchId: number, y: number) => void;
   onCreateChapter?: (chapterData: any) => Promise<void>;
-  onCreateEntryInChapter?: (chapterId: number) => void; 
+  onCreateEntryInChapter?: (chapterId: number) => void;
+  onAddEntry?: (chapterId: number) => void;
 }
 
 export default function TimelineCanvas({
@@ -57,7 +58,8 @@ export default function TimelineCanvas({
   onDeleteChapter,
   onAddBranchEntry,
   onCreateChapter,
-  onCreateEntryInChapter 
+  onCreateEntryInChapter,
+  onAddEntry
 }: TimelineCanvasProps) {
   const { spineX } = LAYOUT_CONSTANTS;
   const infiniteHeight = 999999;
@@ -108,6 +110,7 @@ export default function TimelineCanvas({
       console.error('Error creating chapter:', error);
     }
   };
+  
   const handleCancelChapter = () => {
     setIsCreatingChapter(false);
   };
@@ -220,6 +223,7 @@ export default function TimelineCanvas({
             onDeleteChapter={onDeleteChapter}
             onAddBranchEntry={onAddBranchEntry}
             onCreateChapter={onCreateChapter}
+            onAddEntry={onAddEntry}
           />
         ))}
 
