@@ -3,9 +3,7 @@ import { eventsAPI } from '@/lib/api';
 
 export function useEventActions(refresh: () => Promise<void>) {
   const createEvent = async (data: EventFormData) => {
-    console.log('[useEventActions.createEvent] Called with:', data);
     const result = await eventsAPI.create(data);
-    console.log('[useEventActions.createEvent] Result:', result);
     await refresh();
   };
 

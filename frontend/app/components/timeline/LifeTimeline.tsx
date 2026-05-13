@@ -866,6 +866,7 @@ export default function LifeTimeline({
                 onAddBranchEntry={handleAddBranchEntry}
                 onCreateChapter={handleCreateChapter}
                 onCreateEntryInChapter={handleCreateEntryInChapter}
+                onAddEntry={handleCreateEntryInChapter}
               />
             )}
           </div>

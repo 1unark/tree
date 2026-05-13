@@ -8,7 +8,7 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
   
   if (!token) {
     // No token, redirect to auth page
-    window.location.href = '/auth';
+    window.location.href = '/login';
     throw new Error('Not authenticated');
   }
 
@@ -24,7 +24,7 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
   if (response.status === 401) {
     // Token invalid or expired
     localStorage.removeItem('token');
-    window.location.href = '/auth';
+    window.location.href = '/login';
     throw new Error('Authentication failed');
   }
 
